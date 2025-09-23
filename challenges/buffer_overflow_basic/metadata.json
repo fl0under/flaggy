@@ -1,0 +1,9 @@
+{
+    "description": "Basic buffer overflow challenge - overwrite return address",
+    "category": "pwn",
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 100,
+    "author": "flaggy",
+    "difficulty": "easy",
+    "exclude_files": ["*.c", "*.h", "description.txt", "README.md"]
+}

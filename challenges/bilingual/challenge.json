@@ -1,0 +1,31 @@
+{
+  "name": "Bilingual",
+  "description": "Two languages are better than one!",
+  "category": "reverse",
+  "difficulty": "medium",
+  "source_url": "https://2025.archives.duc.tf/challenges?c=bilingual",
+  "source_platform": "DUCTF Archives 2025",
+  "author": null,
+  "event_name": null,
+  "flag_format": "DUCTF{.*}",
+  "points": 241,
+  "tags": [
+    "reverse-engineering",
+    "python",
+    "code-analysis",
+    "bilingual"
+  ],
+  "estimated_solve_time": 45,
+  "prerequisites": [
+    "Basic reverse engineering skills",
+    "Familiarity with Python"
+  ],
+  "hints": [],
+  "include_files": [
+    "bilingual.py"
+  ],
+  "exclude_files": [],
+  "file_mappings": [],
+  "imported_at": "2025-09-22 22:01:32.673750",
+  "flaggy_version": "1.0"
+}

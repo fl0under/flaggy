@@ -1,0 +1,10 @@
+{
+    "name": "reverse_advanced",
+    "description": "An advanced reverse engineering challenge.",
+    "difficulty": "advanced",
+    "category": "reverse_engineering",
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 300,
+    "author": "flaggy",
+    "exclude_files": ["*.c", "*.cpp", "*.h"]
+}

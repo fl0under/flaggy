@@ -1,0 +1,20 @@
+Buffer Overflow Without Strings
+
+This challenge is similar to the basic buffer overflow, but with a twist:
+
+- The program reads raw bytes using read(0, ...) so your payload can include null bytes.
+- The flag and success message are not present as plain ASCII in the binary.
+
+Your goal is to:
+1. Analyze the binary to find the vulnerability
+2. Determine the buffer size and exact offset to overwrite control flow
+3. Craft a payload that includes binary data (e.g., null bytes) to redirect execution
+4. Trigger the hidden win path to reveal the flag
+
+Notes:
+- The usual strings(1) approach won't help you here.
+- You may need to use gdb/gef or pwntools for crafting the payload.
+
+Flag format: picoCTF{...}
+
+

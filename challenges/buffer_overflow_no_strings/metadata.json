@@ -1,0 +1,12 @@
+{
+    "description": "Buffer overflow without strings - requires binary input (null bytes)",
+    "category": "pwn",
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 200,
+    "author": "flaggy",
+    "difficulty": "medium",
+    "exclude_files": ["*.c", "*.h", "README.md", "description.txt"],
+    "include_files": ["vuln"]
+}
+
+

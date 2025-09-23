@@ -1,0 +1,89 @@
+{
+  "react.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [
+      {
+        "history": "$ echo -n \"Path to the binary\/firmware\/memory dump to analyze: \"; read TARGET\nPath to the binary\/firmware\/memory dump to analyze: \n\n$ \/bin\/ls\nmetadata.json\nvuln\n\n\n$ echo -n \"Select file to analyze [vuln]: \"; read TARGET; [ -z \"$TARGET\" ] && TARGET=vuln; echo \"Analyzing: $TARGET\"\nSelect file to analyze [vuln]: Analyzing: vuln\n\n\n$ file vuln && checksec --file=vuln\nvuln: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter \/lib64\/ld-linux-x86-64.so.2, BuildID[sha1]=18e5ac80fd8268508284f70c629a576cdce44b8e, for GNU\/Linux 3.2.0, not stripped\nbash: line 1: checksec: command not found\n\n\n$ which checksec || (echo \"checksec not found; installing...\" && sudo apt-get update -qq && sudo apt-get install -y checksec) && checksec --file=vuln\nchecksec not found; installing...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following NEW packages will be installed:\n  checksec\n0 upgraded, 1 newly installed, 0 to remove and 204 not upg",
+        "last_output": "checksec not found; installing...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following NEW packages will be installed:\n  checksec\n0 upgraded, 1 newly installed, 0 to remove and 204 not upgraded.\nNeed to get 23.6 kB of archives.\nAfter this operation, 96.3 kB of additional disk space will be used.\nGet:1 http:\/\/deb.debian.org\/debian bookworm\/main amd64 checksec all 2.6.0-2 [23.6 kB]\nFetched 23.6 kB in 0s (425 kB\/s)\nSelecting previously unselected package c",
+        "discovered_info": "",
+        "analysis": "Final analysis for buffer_overflow_basic: ready to execute solution command",
+        "approach": "Execute the final command to solve the challenge",
+        "action_type": "command",
+        "action": "strings vuln | head -n 50"
+      },
+      {
+        "history": "$ echo \"Available binary_analysis tools: file, strings, objdump, readelf, nm, strip, hexdump, xxd, checksec, rabin2, r2, radare2, ghidra, ida, binwalk, foremost, volatility3, yara, pefile, upx, gdb-multiarch\"\nAvailable binary_analysis tools: file, strings, objdump, readelf, nm, strip, hexdump, xxd, checksec, rabin2, r2, radare2, ghidra, ida, binwalk, foremost, volatility3, yara, pefile, upx, gdb-multiarch\n\n\n$ Please provide the path to the binary, firmware image, memory dump, or other artifact you would like analyzed.\nbash: line 1: Please: command not found\n",
+        "last_output": "bash: line 1: Please: command not found\n",
+        "discovered_info": "",
+        "analysis": "Final analysis for buffer_overflow_basic: ready to execute solution command",
+        "approach": "Execute the final command to solve the challenge",
+        "action_type": "command",
+        "action": "echo -n \"Path to the binary\/firmware\/memory dump to analyze: \"; read TARGET"
+      },
+      {
+        "history": "$ file vuln; checksec-py vuln; strings -a -n 8 vuln | sed -n '1,200p'; readelf -sW vuln | sed -n '1,200p'\nvuln: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter \/lib64\/ld-linux-x86-64.so.2, BuildID[sha1]=932019f81fbf653a12b1ee27c33e0ba105334318, for GNU\/Linux 3.2.0, stripped\nbash: line 1: checksec-py: command not found\n\/lib64\/ld-linux-x86-64.so.2\n__libc_start_main\nlib...\n\n$ objdump -d -M intel vuln | sed -n '1,250p'\n\nvuln:     file format elf64-x86-64\n\n\nDisassembly of section .init:\n\n0000000000401000 <.init>:\n  401000:\tf3 0f 1e fa          \tendbr64\n  401004:\t48 83 ec 08          \tsub    rsp,0x8\n  401008:\t48 8b 05 d1 2f 00 00 \tmov    rax,QWORD PTR [rip+0x2fd1]        # 403fe0 <setvbuf@plt+0x2f40>\n  40100f:\t48 85...\n\n$ strings -a -n 4 vuln | sed -n '1,400p'\necho \"---- search for likely keywords ----\"\nstrings -a -n 4 vuln | egrep -i --color=never 'win|flag|secret|You|Congrats|shell|exploit|hidden' || true\necho \"---- function entries and full disassembly",
+        "last_output": "WARN: Relocs has not been applied. Please use `-e bin.relocs.apply=true` or `-e bin.cache=true` next time\nINFO: Analyze all flags starting with sym. and entry0 (aa)\nINFO: Analyze imports (af@@@i)\nINFO: Analyze entrypoint (af@ entry0)\nINFO: Analyze symbols (af@@@s)\nINFO: Analyze all functions arguments\/locals (afva@@@F)\nINFO: Analyze function calls (aac)\nINFO: Analyze len bytes of instructions for references (aar)\nINFO: Finding and parsing C++ vtables (avrr)\nINFO: Analyzing methods (af @@ method.",
+        "discovered_info": "",
+        "analysis": "Final analysis for buffer_overflow_no_strings: ready to execute solution command",
+        "approach": "Execute the final command to solve the challenge",
+        "action_type": "command",
+        "action": "r2 -A -c 'pdf @fcn.0040127e; pdf @main' vuln"
+      },
+      {
+        "history": "$ echo -n \"Path to the binary\/firmware\/memory dump to analyze: \"; read TARGET\nPath to the binary\/firmware\/memory dump to analyze: \n\n$ \/bin\/ls\nmetadata.json\nvuln\n\n\n$ echo -n \"Select file to analyze [vuln]: \"; read TARGET; [ -z \"$TARGET\" ] && TARGET=vuln; echo \"Analyzing: $TARGET\"\nSelect file to analyze [vuln]: Analyzing: vuln\n\n\n$ file vuln && checksec --file=vuln\nvuln: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter \/lib64\/ld-linux-x86-64.so.2, BuildID[sha1]=5e106841d8dcf5c9163b8e82262bdd927e6d37ee, for GNU\/Linux 3.2.0, not stripped\nbash: line 1: checksec: command not found\n\n\n$ which checksec || (echo \"checksec not found, trying to install...\"; sudo apt-get update -qq && sudo apt-get install -y checksec) && checksec --file=vuln\nchecksec not found, trying to install...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following NEW packages will be installed:\n  checksec\n0 upgraded, 1 newly installed, 0 to remove and",
+        "last_output": "checksec not found, trying to install...\nReading package lists...\nBuilding dependency tree...\nReading state information...\nThe following NEW packages will be installed:\n  checksec\n0 upgraded, 1 newly installed, 0 to remove and 204 not upgraded.\nNeed to get 23.6 kB of archives.\nAfter this operation, 96.3 kB of additional disk space will be used.\nGet:1 http:\/\/deb.debian.org\/debian bookworm\/main amd64 checksec all 2.6.0-2 [23.6 kB]\nFetched 23.6 kB in 0s (437 kB\/s)\nSelecting previously unselected pa",
+        "discovered_info": "",
+        "analysis": "Final analysis for format_string_basic: ready to execute solution command",
+        "approach": "Execute the final command to solve the challenge",
+        "action_type": "command",
+        "action": "strings vuln && echo \"---\" && nm -D vuln"
+      }
+    ],
+    "signature": {
+      "instructions": "Analyze CTF challenge state and determine next solving step.",
+      "fields": [
+        {
+          "prefix": "History:",
+          "description": "Previous commands and outputs"
+        },
+        {
+          "prefix": "Last Output:",
+          "description": "Current command output"
+        },
+        {
+          "prefix": "Discovered Info:",
+          "description": "Known challenge information"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Analysis:",
+          "description": "Technical analysis of current state"
+        },
+        {
+          "prefix": "Approach:",
+          "description": "Planned next step approach"
+        },
+        {
+          "prefix": "Action Type:",
+          "description": "Action type: 'command' or 'get_tools'"
+        },
+        {
+          "prefix": "Action:",
+          "description": "Command to execute or tool category"
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.11",
+      "dspy": "3.0.2",
+      "cloudpickle": "3.1"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+    "name": "reverse_basic",
+    "description": "A beginner reverse engineering challenge with basic password protection and XOR encryption",
+    "difficulty": "beginner", 
+    "category": "reverse_engineering",
+    "tags": ["password", "xor", "strings", "basic"],
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 75,
+    "author": "flaggy",
+    "exclude_files": ["*.c", "*.cpp", "*.h"],
+    "hints": [
+        "Use 'strings' command to find hardcoded values",
+        "Look for password comparison logic", 
+        "The flag is XOR encrypted with a simple key"
+    ],
+    "solution_approach": [
+        "Run 'strings challenge' to find the password 'secret_pass'",
+        "Analyze the decrypt_flag function to understand XOR encryption", 
+        "Extract the encrypted bytes and XOR key (0x42)",
+        "Decrypt manually or run the program with correct password"
+    ]
+}

@@ -1,0 +1,9 @@
+{
+    "description": "Basic format string vulnerability - leak memory and modify variables",
+    "category": "pwn", 
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 150,
+    "author": "flaggy",
+    "difficulty": "easy",
+    "exclude_files": ["*.c", "*.cpp", "*.h", "description.txt"]
+}

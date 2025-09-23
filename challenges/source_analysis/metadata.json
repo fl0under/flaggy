@@ -1,0 +1,10 @@
+{
+    "description": "Source code analysis challenge - find vulnerability in code",
+    "category": "misc",
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 125,
+    "author": "flaggy",
+    "difficulty": "easy",
+    "include_files": ["vulnerable.py", "*.txt"],
+    "exclude_files": ["solution*"]
+}

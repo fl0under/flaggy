@@ -1,0 +1,11 @@
+{
+    "name": "reverse_intermediate", 
+    "description": "An intermediate reverse engineering challenge with obfuscated password checks, multi-stage decryption, and anti-debugging",
+    "difficulty": "intermediate",
+    "category": "reverse_engineering", 
+    "tags": ["obfuscation", "multi-stage", "anti-debug", "xor", "arithmetic"],
+    "flag_format": "picoCTF\\{.*\\}",
+    "points": 150,
+    "author": "flaggy",
+    "exclude_files": ["*.c", "*.cpp", "*.h"]
+}

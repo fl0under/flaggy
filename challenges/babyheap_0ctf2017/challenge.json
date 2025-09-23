@@ -1,0 +1,42 @@
+{
+  "name": "babyheap (0ctf2017)",
+  "description": "Heap exploitation challenge (rehost of 0ctf2017) provided as a binary plus a matching libc (libc-2.23.so). Analyze the babyheap binary and use glibc heap techniques (e.g., use-after-free, fastbin/unsorted-bin manipulation, overwrite malloc/free hooks or GOT/return addresses) to achieve code execution and recover the flag. The repository includes DESCRIPTION.md and REHOST.md with full challenge and run instructions; use the provided libc when testing locally.",
+  "category": "pwn",
+  "difficulty": "easy",
+  "source_url": "https://github.com/pwncollege/ctf-archive/tree/main/0ctf2017/babyheap",
+  "source_platform": "pwncollege/ctf-archive (GitHub)",
+  "author": "pwncollege (rehost of 0ctf2017)",
+  "event_name": null,
+  "flag_format": "flag{[A-Za-z0-9_+/=:-]+}",
+  "points": null,
+  "tags": [
+    "heap",
+    "heap-exploitation",
+    "use-after-free",
+    "fastbin",
+    "unsorted-bin",
+    "libc-2.23",
+    "binary-exploitation",
+    "pwn"
+  ],
+  "estimated_solve_time": 90,
+  "prerequisites": [
+    "Linux command line",
+    "gdb (or gef/pwndbg)",
+    "pwntools (Python)",
+    "basic reverse engineering (strings, objdump, Ghidra/IDA/Radare2)",
+    "familiarity with glibc malloc internals (fastbins, unsorted bin, chunk consolidation, malloc_hook)",
+    "ability to run binaries with a provided libc (LD_PRELOAD or patchelf)"
+  ],
+  "hints": [],
+  "include_files": [
+    "DESCRIPTION.md",
+    "REHOST.md",
+    "babyheap",
+    "libc-2.23.so"
+  ],
+  "exclude_files": [],
+  "file_mappings": [],
+  "imported_at": "2025-09-11 23:42:12.712274",
+  "flaggy_version": "1.0"
+}

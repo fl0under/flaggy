@@ -1,0 +1,17 @@
+Basic Buffer Overflow Challenge
+
+This is a simple buffer overflow vulnerability. The program reads user input without bounds checking.
+
+Your goal is to:
+1. Analyze the binary to find the vulnerability
+2. Determine the buffer size and return address offset
+3. Craft a payload to redirect execution
+4. Extract the flag
+
+Tools you might need:
+- file, checksec (binary analysis)
+- gdb (debugging and finding offsets)
+- python3 with pwntools (payload crafting)
+- strings (finding hardcoded data)
+
+The flag is in the format: picoCTF{...}

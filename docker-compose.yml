@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: flaggy-postgres
+    environment:
+      POSTGRES_DB: ctf
+      POSTGRES_USER: flaggy
+      POSTGRES_PASSWORD: flaggy123
+    ports:
+      - "5432:5432"
+    volumes:
+      - flaggy_postgres_data:/var/lib/postgresql/data
+      - ./ctf_solver/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flaggy -d ctf"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  flaggy_postgres_data:

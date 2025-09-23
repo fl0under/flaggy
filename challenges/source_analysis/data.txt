@@ -1,0 +1,8 @@
+Common passwords to try:
+- admin
+- password
+- 123456
+- hello
+- secret
+
+Note: This file is provided as a hint for the challenge.
