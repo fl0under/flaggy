@@ -60,7 +60,7 @@ After setup, try solving a challenge:
 # List available challenges
 uv run flaggy list-challenges
 
-# Solve the first challenge (will auto-pull Exegol image if needed)
+# Solve the first challenge (service auto-starts if needed)
 uv run flaggy solve 1
 
 # Monitor progress in real-time (separate terminal)
@@ -75,8 +75,10 @@ uv run flaggy-tui
   - Creates an optimized agent from successful attempts.
 - `uv run flaggy list-agents` / `uv run flaggy inspect-agent <name>`
   - Manage and inspect saved optimized agents.
-- `uv run flaggy daemon [--max-parallel N]`
-  - Runs a background worker that processes queued challenges.
+- `uv run flaggy service start [--parallel N]`
+  - Starts the shared background service (auto-starts when running `solve` or the TUI).
+- `uv run flaggy service stop`
+  - Stops the background service.
 - `uv run flaggy test-mount <challenge_id>`
   - Verifies container mounting and tool availability without running the LLM.
 - `uv run flaggy dspy-gepa-optimize --train 1,2,3 [--dev 4,5] [--auto light|medium|heavy|none] [...]`

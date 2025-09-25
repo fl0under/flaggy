@@ -3,6 +3,59 @@ from typing import List, Tuple
 from ctf_solver.database.db import get_db_cursor
 
 
+def fetch_challenges() -> List[Tuple]:
+    """Fetch all challenges with their summary info for the challenges view"""
+    sql = """
+    SELECT c.id,
+           c.name,
+           c.category,
+           COALESCE(c.description, ''),
+           COALESCE(attempt_stats.total_attempts, 0) AS total_attempts,
+           attempt_stats.latest_status
+    FROM challenges c
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS total_attempts,
+               (SELECT status 
+                FROM attempts a2 
+                WHERE a2.challenge_id = c.id 
+                ORDER BY a2.started_at DESC 
+                LIMIT 1) AS latest_status
+        FROM attempts a
+        WHERE a.challenge_id = c.id
+    ) attempt_stats ON TRUE
+    ORDER BY c.name ASC;
+    """
+    with get_db_cursor() as cur:
+        cur.execute(sql)
+        return cur.fetchall()
+
+
+def fetch_challenge_runs(challenge_id: int) -> List[Tuple]:
+    """Fetch all attempts/runs for a specific challenge"""
+    sql = """
+    SELECT a.id::text AS attempt_id,
+           CASE
+             WHEN a.status = 'running' AND COALESCE(NOW() - ls.last_ts, NOW() - a.started_at) > INTERVAL '120 seconds'
+               THEN 'stale'
+             ELSE a.status
+           END AS status,
+           a.started_at,
+           COALESCE(a.flag, '') AS flag,
+           COALESCE(a.total_steps, 0) AS steps
+    FROM attempts a
+    LEFT JOIN LATERAL (
+        SELECT MAX(s.created_at) AS last_ts
+        FROM steps s
+        WHERE s.attempt_id = a.id
+    ) ls ON TRUE
+    WHERE a.challenge_id = %s
+    ORDER BY a.started_at DESC
+    LIMIT 50;
+    """
+    with get_db_cursor() as cur:
+        cur.execute(sql, (challenge_id,))
+        return cur.fetchall()
+
 def fetch_jobs() -> List[Tuple]:
     sql = """
     WITH last_step AS (

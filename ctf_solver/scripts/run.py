@@ -12,11 +12,10 @@ import time
 import subprocess
 from pathlib import Path
 
-from ctf_solver.database.db import get_db_connection
-from ctf_solver.core.orchestrator import SimpleOrchestrator
 from ctf_solver.core.challenge_manager import ChallengeManager
-from ctf_solver.optimization import DSPyGEPAOptimizer
+from ctf_solver.database.db import get_db_connection
 from ctf_solver.import_system.cli import import_cli
+from ctf_solver.optimization import DSPyGEPAOptimizer
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
 
@@ -207,40 +206,39 @@ def init(ctx, api_key: str, force_env: bool, reset: bool, skip_challenges: bool,
 
 @cli.command()
 @click.argument('challenge_id', type=int)
-@click.option('--max-parallel', default=1, help='Maximum parallel attempts')
 @click.option('--optimized', help='Use optimized agent (specify name, default: "default")')
 @click.pass_context
-def solve(ctx, challenge_id: int, max_parallel: int, optimized: str):
+def solve(ctx, challenge_id: int, optimized: str):
     """Solve a specific challenge"""
+    from ctf_solver.service.supervisor import ServiceSupervisor
+    from ctf_solver.service.errors import ServiceError
+
     try:
-        db = get_db_connection()
-        
-        # Handle optimized agent name
         agent_name = None
         if optimized:
             agent_name = optimized if optimized != "default" else "default"
             click.echo(f"🧠 Using optimized agent: {agent_name}")
-        
-        orchestrator = SimpleOrchestrator(
-            db, 
-            max_parallel=max_parallel,
-            optimized_agent_name=agent_name
-        )
-        
+
+        supervisor = ServiceSupervisor()
+        supervisor.ensure_running()
         click.echo(f"Starting solver for challenge {challenge_id}")
-        orchestrator.submit_challenge(challenge_id)
-        
-        # Wait for the single challenge to complete, then exit
+        attempt_id = supervisor.start_attempt(challenge_id, optimized_agent=agent_name)
+        click.echo(f"Attempt {attempt_id} queued. Waiting for completion…")
+
         try:
-            import time
-            while not orchestrator.job_queue.empty() or orchestrator.active_runners:
-                time.sleep(0.1)  # Check more frequently
+            status = supervisor.wait_attempt(attempt_id, poll_interval=2.0)
         except KeyboardInterrupt:
-            click.echo("\nStopping solver...")
-        finally:
-            # Clean shutdown after completion
-            orchestrator.shutdown()
-            
+            click.echo("\nCancellation requested, stopping attempt...")
+            supervisor.cancel_attempt(attempt_id)
+            status = supervisor.get_attempt_status(attempt_id)
+
+        click.echo(f"Attempt {attempt_id} finished with status: {status.get('status', 'unknown')}")
+        if status.get("flag"):
+            click.echo(f"Flag: {status['flag']}")
+
+    except ServiceError as exc:
+        click.echo(f"Service error: {exc}", err=True)
+        sys.exit(1)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -489,29 +487,53 @@ def inspect_agent(ctx, agent_name: str):
         sys.exit(1)
 
 
-@cli.command()
-@click.option('--max-parallel', default=2, help='Maximum parallel attempts')
-@click.pass_context  
-def daemon(ctx, max_parallel: int):
-    """Run flaggy as a daemon, processing challenges from queue"""
+@cli.group()
+def service():
+    """Manage the background flaggy service."""
+
+
+@service.command('start')
+@click.option('--parallel', default=1, help='Maximum parallel attempts')
+@click.option('--optimized', default=None, help='Default optimized agent name for new runs')
+def service_start(parallel: int, optimized: Optional[str]):
+    """Start the background service (no-op if already running)."""
+    from ctf_solver.service.supervisor import ServiceSupervisor
+    from ctf_solver.service.errors import ServiceError
+
+    supervisor = ServiceSupervisor()
     try:
-        db = get_db_connection()
-        orchestrator = SimpleOrchestrator(db, max_parallel=max_parallel)
-        
-        click.echo(f"Starting flaggy daemon with {max_parallel} parallel workers")
-        click.echo("Press Ctrl+C to stop")
-        
-        # Keep running until user interrupts
-        try:
-            import time
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            click.echo("\nStopping daemon...")
-            
-    except Exception as e:
-        click.echo(f"Error: {e}", err=True)
-        sys.exit(1)
+        supervisor.ensure_running()
+        click.echo("Service already running.")
+        return
+    except ServiceError:
+        pass
+
+    from ctf_solver.service.utils import default_service_command
+
+    cmd = default_service_command()
+    if parallel != 1:
+        cmd += ["--parallel", str(parallel)]
+    if optimized:
+        cmd += ["--optimized", optimized]
+
+    click.echo("Launching service...")
+    supervisor = ServiceSupervisor(service_cmd=cmd)
+    supervisor.ensure_running()
+    click.echo("Service started.")
+
+
+@service.command('stop')
+def service_stop():
+    """Stop the background service if running."""
+    from ctf_solver.service.supervisor import ServiceSupervisor
+    from ctf_solver.service.errors import ServiceError
+
+    supervisor = ServiceSupervisor()
+    try:
+        supervisor.client._send_request("shutdown", {})
+        click.echo("Service stopping...")
+    except ServiceError as exc:
+        click.echo(f"Service error: {exc}", err=True)
 
 
 @cli.command()

@@ -25,3 +25,22 @@ class LogEntry:
     approach: Optional[str]
 
 
+@dataclass
+class Challenge:
+    id: int
+    name: str
+    category: str
+    description: str
+    total_attempts: int
+    latest_status: Optional[str]
+
+
+@dataclass
+class ChallengeRun:
+    attempt_id: str
+    status: str
+    started_at: datetime
+    flag: str
+    steps: int
+
+

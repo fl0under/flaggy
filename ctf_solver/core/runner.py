@@ -2,7 +2,8 @@ import re
 import time
 import json
 import logging
-from typing import Optional, Dict, Any, List
+import threading
+from typing import Optional, Dict, Any, List, Callable
 
 from ctf_solver.containers.exegol import ExegolContainer
 from ctf_solver.agent.dspy_agent import CTFAgent
@@ -15,7 +16,15 @@ logger = logging.getLogger(__name__)
 
 
 class ChallengeRunner:
-    def __init__(self, db_conn, container_name, use_presenter: bool = True, optimized_agent_name: str = None):
+    def __init__(
+        self,
+        db_conn,
+        container_name,
+        use_presenter: bool = True,
+        optimized_agent_name: str = None,
+        on_attempt_created: Optional[Callable[[int], None]] = None,
+        on_attempt_finished: Optional[Callable[[int, str], None]] = None,
+    ):
         self.db = db_conn
         self.container_name = container_name
         self.container = None  # Will be initialized with mounts in run_attempt
@@ -23,6 +32,11 @@ class ChallengeRunner:
         self.optimized_agent_name = optimized_agent_name
         self.challenge_manager = ChallengeManager()
         self.presenter = CLIPresenter() if use_presenter else None
+        self.on_attempt_created = on_attempt_created
+        self.on_attempt_finished = on_attempt_finished
+        self._stop_event = threading.Event()
+        self.current_attempt_id: Optional[int] = None
+        self._finished_notified = False
         # Live flag detection during streaming
         self._live_flag = False
         self._live_flag_value: Optional[str] = None
@@ -125,6 +139,11 @@ Try a more specific command that focuses on what you need to find."""
     def run_attempt(self, challenge_id):
         # Create attempt record first (without container name)
         attempt_id = self._create_attempt(challenge_id)
+        self.current_attempt_id = attempt_id
+        if self._stop_event.is_set():
+            self._mark_cancelled(attempt_id)
+            self._notify_attempt_finished(attempt_id, "cancelled")
+            return None
         
         try:
             # Build container name using attempt_id  
@@ -191,6 +210,10 @@ Try a more specific command that focuses on what you need to find."""
                 logger.info("Available categories: binary_analysis, debugging, exploitation, network, web, crypto, forensics, reverse_engineering, mobile, osint, post_exploitation, utilities")
             
             for step_num in range(CTF_OUTER_MAX_STEPS):
+                if self._stop_event.is_set():
+                    self._mark_cancelled(attempt_id)
+                    self._notify_attempt_finished(attempt_id, "cancelled")
+                    return None
                 # Record execution start time
                 start_time = time.time()
                 
@@ -348,6 +371,7 @@ Try a more specific command that focuses on what you need to find."""
                         logger.info(f"Challenge {challenge_id} solved! Flag: {flag}")
                         
                     self._mark_success(attempt_id, flag, step_num)
+                    self._notify_attempt_finished(attempt_id, "completed")
                     return flag
                     
             self._mark_failed(attempt_id)
@@ -355,17 +379,34 @@ Try a more specific command that focuses on what you need to find."""
                 self.presenter.show_challenge_failed("Maximum steps reached without finding flag")
             else:
                 logger.info(f"Challenge {challenge_id} failed after 50 steps")
+            self._notify_attempt_finished(attempt_id, "failed")
             return None
             
         except Exception as e:
             logger.error(f"Error in attempt {attempt_id}: {e}")
             self._mark_failed(attempt_id)
+            if attempt_id is not None:
+                self._notify_attempt_finished(attempt_id, "failed")
             return None
         finally:
             # Clean up container
             if self.container:
                 self.container.cleanup()
+            if attempt_id is not None:
+                self._notify_attempt_finished(attempt_id, "failed")
     
+    def request_stop(self) -> None:
+        """Signal the runner to stop at the next safe opportunity."""
+        self._stop_event.set()
+        try:
+            if self.container:
+                self.container.stop()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Failed to stop container gracefully: %s", exc)
+
+    def stop_requested(self) -> bool:
+        return self._stop_event.is_set()
+
     def _analyze_result_for_state(self, state: Dict[str, Any], result: Dict[str, Any]):
         """Analyze command result and update state with discovered information"""
         if not result or 'stdout' not in result:
@@ -399,6 +440,11 @@ Try a more specific command that focuses on what you need to find."""
             attempt_id = cursor.fetchone()[0]
             self.db.commit()
             logger.info(f"Created attempt {attempt_id} for challenge {challenge_id}")
+            if self.on_attempt_created:
+                try:
+                    self.on_attempt_created(attempt_id)
+                except Exception as callback_exc:  # noqa: BLE001
+                    logger.warning("Attempt created callback failed: %s", callback_exc)
             return attempt_id
         except Exception as e:
             logger.error(f"Failed to create attempt: {e}")
@@ -628,6 +674,36 @@ Try a more specific command that focuses on what you need to find."""
             logger.error(f"Failed to mark failure: {e}")
             self.db.rollback()
             
+    def _mark_cancelled(self, attempt_id: int):
+        """Mark attempt as cancelled."""
+        try:
+            cursor = self.db.cursor()
+            cursor.execute(
+                """
+                UPDATE attempts
+                SET status = 'cancelled', completed_at = NOW()
+                WHERE id = %s
+                """,
+                (attempt_id,),
+            )
+            self.db.commit()
+            logger.info("Marked attempt %s as cancelled", attempt_id)
+            if self.presenter:
+                self.presenter.show_challenge_failed("Attempt cancelled")
+        except Exception as exc:
+            logger.error("Failed to mark attempt as cancelled: %s", exc)
+            self.db.rollback()
+
+    def _notify_attempt_finished(self, attempt_id: int, status: str) -> None:
+        if self._finished_notified:
+            return
+        self._finished_notified = True
+        if self.on_attempt_finished:
+            try:
+                self.on_attempt_finished(attempt_id, status)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Attempt finished callback failed: %s", exc)
+
     def _create_streaming_callback(self, step_num: int, challenge_id: int):
         """Create a streaming callback for real-time ReAct display"""
         # Track current ReAct step being built
