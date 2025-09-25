@@ -1,0 +1,32 @@
+{
+  "name": "Skippy",
+  "description": "Skippy seems to be in a bit of trouble skipping over some sandwiched functions. Help skippy get across with a hop, skip and a jump!",
+  "category": "reverse",
+  "difficulty": "easy",
+  "source_url": "https://2025.archives.duc.tf/challenges?c=skippy",
+  "source_platform": "DUCTF Archives 2025",
+  "author": null,
+  "event_name": null,
+  "flag_format": "DUCTF{.*}",
+  "points": 100,
+  "tags": [
+    "reverse-engineering",
+    "windows",
+    "binary-analysis",
+    "obfuscation"
+  ],
+  "estimated_solve_time": 20,
+  "prerequisites": [
+    "Basic reverse engineering knowledge",
+    "Disassembler like Ghidra or IDA Free",
+    "Windows environment for execution"
+  ],
+  "hints": [],
+  "include_files": [
+    "skippy.exe"
+  ],
+  "exclude_files": [],
+  "file_mappings": [],
+  "imported_at": "2025-09-22 19:54:49.529140",
+  "flaggy_version": "1.0"
+}
