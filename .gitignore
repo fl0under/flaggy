@@ -11,5 +11,11 @@ __pycache__/
 runs/
 evidence/
 
+# Generated training datasets (regenerable via `flaggy generate`)
+datasets/
+
+# Interactive scratch logs
+**/.interactive/
+
 # Local env
 .env

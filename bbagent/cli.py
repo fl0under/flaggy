@@ -6,6 +6,7 @@ import sys
 
 from rich.console import Console
 
+from .generate import ENCODERS, GenerateError, generate_dataset
 from .harbor_export import HarborExportError, export_task_to_harbor
 from .interactive import InteractiveError, run_interactive
 from .operatorize import OperatorizeError, is_task_dir, operatorize_tree
@@ -96,6 +97,28 @@ def cmd_operatorize(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_generate(args: argparse.Namespace) -> int:
+    categories = [c.strip() for c in args.categories.split(",")] if args.categories else None
+    try:
+        paths = generate_dataset(
+            args.out,
+            args.count,
+            seed=args.seed,
+            categories=categories,
+            force=args.force,
+        )
+    except GenerateError as exc:
+        console.print(f"[red]Generate failed:[/red] {exc}")
+        return 1
+    out = Path(args.out)
+    console.print(f"[green]Generated[/green] {len(paths)} training task(s) in {out}")
+    console.print("Validate every task is solvable (oracle must capture all flags):")
+    print(f"  tb run --agent oracle --dataset-path {out} --no-rebuild")
+    console.print("Then RL/eval with Terminus against this contamination-free pool:")
+    print(f"  tb run --agent terminus --model <model> --dataset-path {out}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="flaggy",
@@ -136,6 +159,17 @@ def build_parser() -> argparse.ArgumentParser:
     op.add_argument("--image", default="flaggy-operator:latest", help="Operator image to use as the new base")
     op.add_argument("--dry-run", action="store_true", help="Show what would change without writing")
     op.set_defaults(func=cmd_operatorize)
+
+    g = sub.add_parser(
+        "generate",
+        help="Generate a procedural, contamination-free CTF training pool as flag-graded Harbor tasks",
+    )
+    g.add_argument("--out", default="datasets/flaggy-train", help="Output dataset directory")
+    g.add_argument("--count", type=int, default=20, help="Number of tasks to generate")
+    g.add_argument("--seed", type=int, default=0, help="Base seed (task i uses seed+i)")
+    g.add_argument("--categories", help=f"Comma-separated subset of: {', '.join(ENCODERS)}")
+    g.add_argument("--force", action="store_true", help="Overwrite existing tasks")
+    g.set_defaults(func=cmd_generate)
 
     return p
 

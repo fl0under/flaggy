@@ -25,6 +25,7 @@ docs/HARBOR_FIRST.md        architecture notes
 pi-package/                 optional Pi prompts/skills, not an orchestration layer
 operator/Dockerfile         Exegol-based operator image for Harbor + interactive
 docs/CYBENCH.md             recipe: run Cybench (and similar) on the operator image
+docs/TRAINING.md            SFT/RL strategy and contamination-free training pools
 scripts/flaggy              repo-local uv wrapper
 scripts/build-operator      build the Exegol operator image
 scripts/operator-smoketest  check the operator image can host Terminus (tmux)
@@ -65,6 +66,7 @@ flaggy check <scope.yaml>
 flaggy export <task.yaml> [--out benchmarks/flaggy] [--docker-image IMG] [--force]
 flaggy interactive <task.yaml-or-harbor-task-dir> [--tool shell|pi] [--image IMG]
 flaggy operatorize <task-dir-or-dataset-tree> [--image IMG] [--dry-run]
+flaggy generate [--out datasets/flaggy-train] [--count N] [--seed S] [--categories ...]
 ```
 
 That is deliberately the whole interface.
@@ -72,6 +74,8 @@ That is deliberately the whole interface.
 - `check` validates a scope allowlist.
 - `export` writes a Harbor task directory.
 - `interactive` builds the generated Harbor `environment/Dockerfile`, mounts the task instruction at `/app/instruction.md`, mounts logs/artifacts at `/logs`, and opens a shell or Pi inside that same environment.
+- `operatorize` retargets external benchmark tasks onto the operator image (see above).
+- `generate` writes a procedural, contamination-free CTF training pool (see below).
 
 Everything else should be done with Harbor directly:
 
@@ -188,6 +192,27 @@ tb run --agent terminus --model <model> --dataset-path /path/to/dataset/cybench
 challenge files and build steps are preserved. CTF grading is exact-flag capture,
 giving a clean reward signal. See [docs/CYBENCH.md](docs/CYBENCH.md) for the full
 recipe and caveats.
+
+### Training pool (procedural, contamination-free)
+
+You can't RL on Cybench and then evaluate on it. `flaggy generate` produces a
+*disjoint* training pool of procedural CTF tasks — generated, not scraped, so
+they never overlap with any eval benchmark — that run through the same harness:
+
+```bash
+flaggy generate --out datasets/flaggy-train --count 200 --seed 0
+# every task is solvable: the oracle must capture all flags
+tb run --agent oracle --dataset-path datasets/flaggy-train --no-rebuild
+# then RL/SFT with Terminus; reward = exact-flag capture
+```
+
+Each task hides a unique `flag{...}` recoverable from the challenge files alone,
+grades on exact match (clean RLVR reward), is deterministic by seed, and ships an
+oracle solution (proof of solvability + ready-made SFT trajectories). Categories
+(`xor-single`, `xor-repeat`, `caesar`, `base64-layers`) live in a registry in
+`bbagent/generate.py` and are easy to extend. Train on this pool, keep
+Cybench/NYU CTF held out. See [docs/TRAINING.md](docs/TRAINING.md) for the wider
+SFT/RL strategy.
 
 ## Scope files
 
