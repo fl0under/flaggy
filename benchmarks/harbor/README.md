@@ -5,7 +5,7 @@ Harbor changes quickly, so this prototype keeps the integration thin: generate a
 The intended shape is:
 
 ```bash
-pip install harbor
+uv tool install harbor
 harbor datasets list
 harbor run -d "terminal-bench@2.0" -a "custom" -m "$MODEL" --n-concurrent 1
 ```

@@ -41,7 +41,7 @@ def write_rollout_manifest(out_dir: str | Path, *, task_id: str, prompt: str, re
 
 def run_harbor(args: list[str]) -> str:
     if not installed():
-        raise HarborError("harbor CLI is not installed. Try: pip install harbor")
+        raise HarborError("harbor CLI is not installed. Try: uv tool install harbor")
     cp = subprocess.run(["harbor", *args], text=True, capture_output=True)
     if cp.returncode != 0:
         raise HarborError(cp.stderr or cp.stdout)

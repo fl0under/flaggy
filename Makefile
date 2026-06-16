@@ -1,16 +1,16 @@
 .PHONY: setup test scope prompt lab
 
 setup:
-	python -m pip install -e . pytest
+	uv sync
 
 test:
-	pytest -q
+	uv run pytest -q
 
 scope:
-	scripts/bbctl scope-check configs/scope.example.yaml
+	uv run bbctl scope-check configs/scope.example.yaml
 
 prompt:
-	scripts/bbctl prompt tasks/example.local.yaml
+	uv run bbctl prompt tasks/example.local.yaml
 
 lab:
-	python benchmarks/local-toy-web/app.py
+	uv run python benchmarks/local-toy-web/app.py

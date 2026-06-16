@@ -35,14 +35,15 @@ docker/compose.yaml         optional Docker Compose controller
 
 ## Quick start: local, no Docker
 
+This project uses [uv](https://docs.astral.sh/uv/) for all Python workflows.
+`uv` creates the virtualenv and installs dependencies on first run, so there is
+no separate `venv`/`pip` step.
+
 ```bash
-cd bounty-pi-agent
-python -m venv .venv
-. .venv/bin/activate
-pip install -e .
+uv sync
 
 # Terminal 1: local lab
-python benchmarks/local-toy-web/app.py
+uv run python benchmarks/local-toy-web/app.py
 
 # Terminal 2: validate scope and create a plan
 scripts/bbctl scope-check configs/scope.example.yaml
@@ -51,6 +52,10 @@ scripts/bbctl launch tasks/example.local.yaml --no-docker
 
 tmux attach -t bb-local-lab
 ```
+
+`scripts/bbctl` wraps `uv run`, so it transparently uses the project
+environment. You can also call the installed console script directly with
+`uv run bbctl ...`.
 
 For an OpenRouter-generated plan:
 
