@@ -1,148 +1,193 @@
-# flaggy
-a little LLM powered friend to find flags in CTFs
+# Flaggy
 
-This project is in early stages! Documentation may not be updated and the code is evolving.
+Flaggy is now intentionally small: it turns a scoped security-research task into a native Harbor task, then gets out of the way.
 
-flaggy uses DSPy in a Chain of Thought (CoT) loop to solve capture the flag challenges.
-It runs in a [Exegol](https://exegol.com/) docker container - it provides common tools for solving CTFs.
+Use **Harbor + Terminus-2** for reproducible evals, traces, and future RL. Use **`flaggy interactive`** when you want to work in the exact same generated task environment yourself, optionally with Pi if it is installed in the image.
 
-I recommend starting with gpt-5-mini or grok-4-fast as capable and cost effective models.
+## Safety boundary
 
-## Installation
+This repo is for authorized programs, internal assets, local labs, and CTF-style practice only.
 
-### Prerequisites
-- Python 3.9+
-- [uv](https://github.com/astral-sh/uv) for Python package management
-- Docker and Docker Compose for containers and database
-- [Exegol wrapper](https://exegol.readthedocs.io/) for container management
-- Internet connection for pulling Exegol image automatically
+Every task must point to an explicit scope file. The generated instructions and verifier emphasize low-risk work: passive inspection, code review, safe local reproduction, clear evidence, and no denial of service, stealth, persistence, credential attacks, destructive changes, data exfiltration, or broad internet scanning.
 
-### Setup
+## Repo map
 
-1. **Install uv** (if not already installed):
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
-
-2. **Install Exegol wrapper**:
-   ```bash
-   # Install Exegol wrapper globally
-   pip install exegol
-   ```
-
-3. **Clone and setup the project**:
-   ```bash
-   git clone https://github.com/fl0under/flaggy
-   cd flaggy
-   
-   # Install Python dependencies (includes Exegol)
-   uv sync
-   ```
-
-4. **One-step project init**:
-   ```bash
-   # This pulls Docker images, brings up Postgres (waits for healthy),
-   # writes .env (optionally with your API key), creates schema, syncs challenges,
-   # and pre-pulls the Exegol container image.
-   uv run flaggy init --api-key "your-openrouter-api-key"
-   ```
-
-5. **Run TUI**:
-   ```bash
-   uv run flaggy-tui
-   ```
-
-## Quick Start
-
-After setup, try solving a challenge:
-
-```bash
-# List available challenges
-uv run flaggy list-challenges
-
-# Solve the first challenge (service auto-starts if needed)
-uv run flaggy solve 1
-
-# Monitor progress in real-time (separate terminal)
-uv run flaggy-tui
+```text
+bbagent/                    tiny Python package: scope/task parsing, Harbor export, interactive env
+configs/scope.example.yaml  explicit allowlist and forbidden-action policy
+configs/scope.ctf.example.yaml
+tasks/example.local.yaml    example local web lab task
+tasks/example.ctf.yaml      example binary/CTF-style task
+benchmarks/local-toy-web/   loopback-only toy benchmark service
+benchmarks/flaggy/          generated Harbor tasks
+benchmarks/harbor/          Harbor workflow notes
+docs/HARBOR_FIRST.md        architecture notes
+pi-package/                 optional Pi prompts/skills, not an orchestration layer
+scripts/flaggy              repo-local uv wrapper
+scripts/ghidra-headless     headless Ghidra decompile helper
+scripts/ghidra/             Ghidra post-scripts
 ```
 
-### Additional commands
+## Quick start
 
-- `uv run flaggy list-attempts [--successful] [--verbose]`
-  - Shows previous runs; `--verbose` will print flags. Use with care.
-- `uv run flaggy optimize [--min-attempts N] [--method bootstrap|mipro] [--max-demos N] [--name NAME]`
-  - Creates an optimized agent from successful attempts.
-- `uv run flaggy list-agents` / `uv run flaggy inspect-agent <name>`
-  - Manage and inspect saved optimized agents.
-- `uv run flaggy service start [--parallel N]`
-  - Starts the shared background service (auto-starts when running `solve` or the TUI).
-- `uv run flaggy service stop`
-  - Stops the background service.
-- `uv run flaggy test-mount <challenge_id>`
-  - Verifies container mounting and tool availability without running the LLM.
-- `uv run flaggy dspy-gepa-optimize --train 1,2,3 [--dev 4,5] [--auto light|medium|heavy|none] [...]`
-  - Runs the official DSPy GEPA optimizer on selected challenges.
-
-## Architecture
-
-- **Agent**: DSPy-powered LLM agent using OpenRouter
-- **Containers**: Exegol Docker containers for isolated execution
-- **Database**: PostgreSQL for tracking challenges, attempts, and steps
-- **TUI**: Textual-based terminal interface for monitoring
-- **Orchestrator**: Python-based job queue and worker management
-
-## TUI
-
-Run with `uv run flaggy-tui`. Key bindings: `y` copies the current attempt's flag to the clipboard, `q` quits.
-
-## Development
-
-### Install dev dependencies
 ```bash
-uv sync --group dev
+uv sync
+
+# Validate a scope file.
+scripts/flaggy check configs/scope.example.yaml
+
+# Export a Flaggy task YAML to a native Harbor task directory.
+scripts/flaggy export tasks/example.local.yaml --force
+
+# Run the task with Harbor directly. Flaggy does not wrap this.
+harbor run -p benchmarks/flaggy/local-toy-header-review -a terminus-2 -m <model>
+
+# Or open the same generated environment yourself.
+scripts/flaggy interactive benchmarks/flaggy/local-toy-header-review
 ```
 
-### Run tests
+`flaggy export` prints the native `harbor run` command after writing the task.
+
+If you are running without `uv`, use:
+
 ```bash
-uv run pytest
+PYTHONPATH=. python -m bbagent.cli export tasks/example.local.yaml --force
 ```
 
-### Code formatting
+## Minimal commands
+
 ```bash
-uv run black ctf_solver/
-uv run ruff check ctf_solver/
+flaggy check <scope.yaml>
+flaggy export <task.yaml> [--out benchmarks/flaggy] [--force]
+flaggy interactive <task.yaml-or-harbor-task-dir> [--tool shell|pi]
 ```
 
-### Type checking
+That is deliberately the whole interface.
+
+- `check` validates a scope allowlist.
+- `export` writes a Harbor task directory.
+- `interactive` builds the generated Harbor `environment/Dockerfile`, mounts the task instruction at `/app/instruction.md`, mounts logs/artifacts at `/logs`, and opens a shell or Pi inside that same environment.
+
+Everything else should be done with Harbor directly:
+
 ```bash
-uv run mypy ctf_solver/
+harbor run -p benchmarks/flaggy/local-toy-header-review -a terminus-2 -m <model>
+harbor view ./jobs
+harbor traces export --path ./jobs --recursive
 ```
 
-## Configuration
+## Generated Harbor task layout
 
-Environment variables:
-- `CTF_DSN`: PostgreSQL connection string
-- `OPENROUTER_API_KEY`: Required API key for OpenRouter
-- `CTF_MODEL`: Model to use (default: anthropic/claude-3.5-sonnet)
+`flaggy export` writes:
 
-Notes:
-- `.env` is read from the project root when commands are run from that directory. If you run from elsewhere, set environment variables explicitly.
-- Exegol image pulls can be large on first run; the initial setup may take several minutes.
-- On WSL2, ensure Docker Desktop integration is enabled and port 5432 is accessible from Linux; use `docker compose ps` to confirm health.
+```text
+benchmarks/flaggy/<task-id>/
+  instruction.md
+  task.toml
+  INTERACTIVE.md
+  environment/
+    Dockerfile
+    workdir/
+      ... copied task files ...
+  tests/
+    test.sh
+    grade_report.py
+    flaggy_scope.json
+  solution/
+    solve.sh
+```
 
-Advanced init options:
-- `uv run flaggy init --force-env` to overwrite an existing `.env`.
-- `uv run flaggy init --reset` to drop and recreate DB tables.
-- `uv run flaggy init --skip-challenges` to skip syncing `./challenges`.
-- `uv run flaggy init --skip-pull` to skip pulling the Exegol image.
+The instruction tells agents to write final outputs under `/logs/artifacts/`:
 
-Security & privacy:
-- You are running untrusted challenge binaries—keep them inside containers.
-- Challenge data and outputs may be sent to LLM providers via OpenRouter. Avoid sending real competition flags or proprietary data.
+```text
+/logs/artifacts/report.md
+/logs/artifacts/notes.md
+/logs/artifacts/evidence/
+```
 
-Tested Python versions: 3.9–3.12
+The verifier writes `/logs/verifier/reward.json`, so Harbor/SkyRL can use the task as a reward-producing terminal workload.
 
-## License
+## Interactive mode
 
-MIT
+Interactive mode is for manual or Pi-assisted work without inventing a second runtime.
+
+```bash
+scripts/flaggy interactive tasks/example.local.yaml --force
+scripts/flaggy interactive benchmarks/flaggy/local-toy-header-review --tool shell
+scripts/flaggy interactive benchmarks/flaggy/local-toy-header-review --tool pi
+```
+
+When given a YAML task, `interactive` exports it first. When given a generated Harbor task directory, it uses that directory as-is.
+
+Artifacts are written to:
+
+```text
+benchmarks/flaggy/<task-id>/.interactive/logs/artifacts/
+```
+
+`--tool pi` runs `pi @/app/instruction.md` if `pi` is installed in the generated image. If not, it drops to bash in the same environment. To make Pi always available, use a base image that already contains Pi or edit the generated `environment/Dockerfile`.
+
+Interactive mode maps Harbor `network_mode = "no-network"` to Docker `--network none`. For allowlisted/public tasks it uses Docker's default bridge network; Harbor remains the stricter runner for eval/RL runs.
+
+## Scope files
+
+A scope file is a strict allowlist:
+
+```yaml
+program: local-lab
+mode: local-lab
+allowed_targets:
+  - name: toy-web
+    kind: web
+    base_url: "http://127.0.0.1:8080"
+allowed_networks:
+  - "127.0.0.1/32"
+forbidden_actions:
+  - denial_of_service
+  - credential_stuffing
+  - persistence
+  - stealth
+  - data_exfiltration
+  - destructive_changes
+```
+
+Targets can be web services, binaries, or host:port services:
+
+```yaml
+allowed_targets:
+  - name: toy-web
+    kind: web
+    base_url: "http://127.0.0.1:8080"
+  - name: crackme
+    kind: binary
+    path: ./challenges/crackme
+  - name: pwn-remote
+    kind: host
+    host: 127.0.0.1
+    port: 31337
+```
+
+For local/offline/CTF modes, exported Harbor tasks default to `network_mode = "no-network"`. For non-local tasks, Flaggy derives Harbor hostname allowlists where possible and keeps the fuller bounty-style scope in the instruction and verifier metadata.
+
+## Reverse engineering helper
+
+The repo keeps one small image-agnostic helper for binary analysis:
+
+```bash
+scripts/ghidra-headless ./challenge evidence/challenge.c
+```
+
+It locates `analyzeHeadless` on `PATH`, via `$GHIDRA_HOME`, or in common Ghidra/Exegol locations. The generated Harbor image does not force a full RE stack; add tools to `environment/Dockerfile` for the task that needs them.
+
+## Pi package
+
+`pi-package/` is just optional prompt/skill material. It is not the runtime controller.
+
+The intended Pi workflow is:
+
+```bash
+scripts/flaggy export tasks/example.local.yaml --force
+scripts/flaggy interactive benchmarks/flaggy/local-toy-header-review --tool pi
+```
+
+Inside the container, Pi reads `/app/instruction.md` and writes evidence/report files under `/logs/artifacts/`.

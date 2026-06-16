@@ -1,0 +1,19 @@
+id: ctf-crackme-re
+kind: ctf
+scope: configs/scope.ctf.example.yaml
+agent: scout
+target: crackme
+objective: >
+  Reverse engineer the local crackme binary and explain how it validates input.
+  Use headless Ghidra (scripts/ghidra-headless) plus standard RE tooling, then
+  write a clear explanation with evidence. Do not run destructive actions or
+  exfiltrate data.
+constraints:
+  - Stay inside scope.yaml.
+  - Prefer static analysis first; write decompilation/evidence to the evidence dir.
+  - Keep a timestamped command log.
+  - Stop and ask for human approval before any state-changing or remote action.
+expected_outputs:
+  - runs/<run_id>/notes.md
+  - evidence/crackme.c
+  - runs/<run_id>/report.md

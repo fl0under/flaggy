@@ -1,7 +1,0 @@
-{
-    "description": "dialects",
-    "category": "pwn", 
-    "author": "defcon_2025_quals",
-    "difficulty": "hard",
-    "include_files": ["ctf", "libc.a", "libstdc++.a"]
-}

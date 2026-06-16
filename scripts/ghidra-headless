@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# Headless Ghidra helper for the Flaggy workbench.
+#
+# Imports a binary into a throwaway project, runs auto-analysis, and decompiles
+# every function to a readable C-like text file. Image-agnostic: it locates
+# analyzeHeadless on PATH, via $GHIDRA_HOME, or in common Exegol/Ghidra install
+# paths, and fails with clear guidance if Ghidra is not present.
+#
+# Usage:
+#   scripts/ghidra-headless <binary> [out_file]
+#
+# Output defaults to evidence/<binary-name>.c
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: ghidra-headless <binary> [out_file]" >&2
+  exit 2
+fi
+
+BIN="$1"
+if [[ ! -f "$BIN" ]]; then
+  echo "ghidra-headless: binary not found: $BIN" >&2
+  exit 2
+fi
+BIN="$(cd "$(dirname "$BIN")" && pwd)/$(basename "$BIN")"
+NAME="$(basename "$BIN")"
+OUT="${2:-$ROOT/evidence/${NAME}.c}"
+
+find_headless() {
+  if command -v analyzeHeadless >/dev/null 2>&1; then
+    command -v analyzeHeadless
+    return 0
+  fi
+  local candidate
+  for candidate in \
+    "${GHIDRA_HOME:-/nonexistent}/support/analyzeHeadless" \
+    /opt/tools/ghidra*/support/analyzeHeadless \
+    /opt/ghidra*/support/analyzeHeadless \
+    /usr/share/ghidra*/support/analyzeHeadless \
+    "${HOME}"/ghidra*/support/analyzeHeadless; do
+    if [[ -x "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+HEADLESS="$(find_headless || true)"
+if [[ -z "${HEADLESS:-}" ]]; then
+  cat >&2 <<'MSG'
+ghidra-headless: could not find analyzeHeadless.
+Set GHIDRA_HOME to your Ghidra install, add its support/ dir to PATH, or run
+inside a container image that ships Ghidra. Then re-run:
+  scripts/ghidra-headless <binary> [out_file]
+MSG
+  exit 127
+fi
+
+mkdir -p "$(dirname "$OUT")"
+PROJ_DIR="$(mktemp -d)"
+trap 'rm -rf "$PROJ_DIR"' EXIT
+
+echo "[ghidra] analyzeHeadless: $HEADLESS"
+echo "[ghidra] importing:       $BIN"
+echo "[ghidra] output:          $OUT"
+
+"$HEADLESS" "$PROJ_DIR" bbagent_re \
+  -import "$BIN" \
+  -scriptPath "$ROOT/scripts/ghidra" \
+  -postScript DecompileToFile.py "$OUT" \
+  -deleteProject
+
+echo "[ghidra] done -> $OUT"
