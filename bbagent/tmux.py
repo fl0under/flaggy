@@ -46,3 +46,15 @@ class TmuxSession:
     def capture(self, window: str | int, lines: int = 120) -> str:
         target = f"{self.name}:{window}"
         return _run(["capture-pane", "-p", "-t", target, "-S", f"-{lines}"]).stdout
+
+    def window_exists(self, window: str | int) -> bool:
+        """Check for a window without creating the session (unlike list_windows/ensure)."""
+        if not self.exists():
+            return False
+        fmt = "#{window_index}\t#{window_name}"
+        out = _run(["list-windows", "-t", self.name, "-F", fmt], check=False).stdout
+        for line in out.splitlines():
+            idx, name = (line.split("\t") + ["", ""])[:2]
+            if idx == str(window) or name == window:
+                return True
+        return False

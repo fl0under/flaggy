@@ -55,6 +55,16 @@ scripts/bbctl launch tasks/example.local.yaml --no-docker
 tmux attach -t bb-local-lab
 ```
 
+`launch` starts a background recorder that tails the tmux window into
+`runs/<run_id>/transcript.log` for as long as the window exists (skip it with
+`--no-record`). When the agent is done:
+
+```bash
+scripts/bbctl report runs/<run_id>     # draft report.md from events + evidence + transcript
+scripts/bbctl grade runs/<run_id>      # score the run against completeness/scope checks
+scripts/bbctl grade runs/<run_id> --write --json
+```
+
 `scripts/bbctl` wraps `uv run`, so it transparently uses the project
 environment. You can also call the installed console script directly with
 `uv run bbctl ...`.
@@ -218,7 +228,12 @@ The useful benchmark metrics for this project are not “got shell”. They are:
 - wrote a clear report,
 - used tools efficiently.
 
-Start with local Docker labs and validators that grade the final report. Later, pipe run trajectories into Harbor for model/harness comparisons and rollout generation.
+`bbctl grade` runs the local validators today: task/window/transcript present,
+evidence present, report present and free of leftover `TODO`s, and a
+regex-based scope check over the recorded transcript (flags URLs outside the
+scope's allowed targets/networks). It's a best-effort, post-hoc signal, not a
+security control — see the printed notes for its limitations. `grade.json` is
+shaped for a future Harbor manifest / trajectory exporter.
 
 ## Commands
 
@@ -226,15 +241,21 @@ Start with local Docker labs and validators that grade the final report. Later, 
 bbctl scope-check <scope.yaml>
 bbctl prompt <task.yaml>
 bbctl plan <task.yaml> [--model openrouter/model]
-bbctl launch <task.yaml> [--config configs/agents.example.yaml] [--no-docker]
+bbctl launch <task.yaml> [--config configs/agents.example.yaml] [--no-docker] [--no-record]
 bbctl status <tmux-session>
 bbctl tail <tmux-session> <window> [--lines 120]
+bbctl record <run_dir> <session> <window> [--interval 5] [--lines 2000]
+bbctl report <run_dir>
+bbctl grade <run_dir> [--write] [--json]
 ```
+
+`record` is started automatically by `launch` as a detached background
+process; you'd only run it directly to re-attach logging to a window that was
+started without one.
 
 ## Next implementation steps
 
 1. Add a real Pi TypeScript extension once your installed Pi version is pinned.
-2. Add a Docker network profile per bug bounty program so agents cannot accidentally leave scope.
-3. Add validators for local benchmarks: report contains evidence, target is scoped, no forbidden action was logged.
-4. Add a trajectory exporter from Pi session JSONL + tmux logs into Harbor manifests.
-5. Add model-routing experiments: cheap scout model, stronger reviewer model, local RE-specialist model later.
+2. Enforce scope at runtime (network policy or a scoped egress proxy) instead of only advising it in the prompt — today nothing stops an agent from leaving scope.
+3. Add a trajectory exporter from run logs (events.jsonl + transcript.log) into Harbor manifests, feeding `grade.json` in as a reward signal.
+4. Add model-routing experiments: cheap scout model, stronger reviewer model, local RE-specialist model later.

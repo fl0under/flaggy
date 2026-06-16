@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shlex
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 import yaml
@@ -83,7 +84,20 @@ def docker_pi_command(image: str, prompt_file: Path, workspace_mount: str, *, pr
     )
 
 
-def launch_task(task_path: str, config_path: str, *, no_docker: bool = False) -> dict[str, str]:
+def start_recorder(run: RunLog, session_name: str, window_name: str) -> int:
+    """Spawn a detached background process tailing the tmux window into transcript.log.
+
+    Detached (start_new_session) so it outlives this CLI invocation and keeps
+    recording for as long as the launched window exists.
+    """
+    cmd = [sys.executable, "-m", "bbagent.cli", "record", str(run.dir), session_name, window_name]
+    log_file = (run.dir / "recorder.out").open("w")
+    proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
+    (run.dir / "recorder.pid").write_text(str(proc.pid))
+    return proc.pid
+
+
+def launch_task(task_path: str, config_path: str, *, no_docker: bool = False, record: bool = True) -> dict[str, str]:
     task = Task.load(task_path)
     scope_path = Path(task.scope)
     if not scope_path.exists():
@@ -104,7 +118,19 @@ def launch_task(task_path: str, config_path: str, *, no_docker: bool = False) ->
         cmd = docker_pi_command(cfg.default_image, prompt, cfg.workspace_mount, provider=cfg.provider, model=cfg.model)
     session.new_window(window_name, cmd)
     run.write("tmux_window_started", f"Started tmux window {window_name}", {"session": session.name, "run_id": run.run_id})
-    return {"run_id": run.run_id, "session": session.name, "window": window_name, "prompt": str(prompt), "events": str(run.events_path)}
+
+    info = {
+        "run_id": run.run_id,
+        "session": session.name,
+        "window": window_name,
+        "prompt": str(prompt),
+        "events": str(run.events_path),
+    }
+    if record:
+        recorder_pid = start_recorder(run, session.name, window_name)
+        run.write("recorder_started", f"Started background recorder pid={recorder_pid}")
+        info["transcript"] = str(run.dir / "transcript.log")
+    return info
 
 
 def run_shell_checked(command: list[str]) -> str:
