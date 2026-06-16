@@ -111,9 +111,20 @@ common Ghidra/Exegol install paths, and prints clear guidance if Ghidra is not
 present in the container. The `reverse-engineering` Pi skill documents the same
 pattern (plus raw `analyzeHeadless` usage) so the agent can adapt on its own.
 
-Note: the default controller image (`python:3.12-slim`) is intentionally lean
-and does **not** include Ghidra. Run RE work in an Exegol image that ships it,
-or add Ghidra to your own controller image — see "Exegol mode" below.
+The controller image (`docker/controller.Dockerfile`) ships Ghidra (headless),
+a JDK, and `binutils`/`file`/`gdb`, so the simplest RE setup is to run the agent
+inside it:
+
+```bash
+docker compose -f docker/compose.yaml run --rm controller bash
+# inside the controller (Pi runs here, tools are local):
+bbctl launch tasks/example.ctf.yaml --no-docker
+scripts/ghidra-headless ./challenges/crackme evidence/crackme.c
+```
+
+Pin a different Ghidra release at build time with
+`--build-arg GHIDRA_VERSION=... --build-arg GHIDRA_DATE=...`. Exegol images that
+already ship Ghidra work too.
 
 ## tmux monitoring
 
