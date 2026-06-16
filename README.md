@@ -27,8 +27,10 @@ benchmarks/local-toy-web/   loopback-only toy benchmark service
 benchmarks/harbor/          Harbor integration notes
 pi-package/                 Pi skills/prompts skeleton
 tmux/tmux.conf              tmux helper bindings
-scripts/bbctl               repo-local bbctl wrapper
+scripts/bbctl               repo-local bbctl wrapper (uv run)
 scripts/monitor.py          tiny curses tmux monitor
+scripts/ghidra-headless     headless Ghidra decompile helper
+scripts/ghidra/             Ghidra post-scripts (DecompileToFile.py)
 docker/controller.Dockerfile controller image with Pi + bbctl
 docker/compose.yaml         optional Docker Compose controller
 ```
@@ -92,6 +94,26 @@ scripts/bbctl launch tasks/example.local.yaml
 ```
 
 That starts a tmux window with a transparent `docker run ...` command. If Pi is not installed in the Exegol image, the shell prints the prompt and drops you into bash. You can either install Pi through Exegol my-resources, use the controller image, or keep Pi outside the target container and attach shells manually.
+
+## Reverse engineering / binary analysis
+
+The agent runs with full shell access inside the operator container, so it can
+use whatever is installed there (Ghidra, gdb, radare2, objdump, …). The repo
+ships a small image-agnostic helper rather than a hardcoded RE workflow:
+
+```bash
+# Decompile every function to a readable C file the agent can read.
+scripts/ghidra-headless ./challenge evidence/challenge.c
+```
+
+`ghidra-headless` locates `analyzeHeadless` on `PATH`, via `$GHIDRA_HOME`, or in
+common Ghidra/Exegol install paths, and prints clear guidance if Ghidra is not
+present in the container. The `reverse-engineering` Pi skill documents the same
+pattern (plus raw `analyzeHeadless` usage) so the agent can adapt on its own.
+
+Note: the default controller image (`python:3.12-slim`) is intentionally lean
+and does **not** include Ghidra. Run RE work in an Exegol image that ships it,
+or add Ghidra to your own controller image — see "Exegol mode" below.
 
 ## tmux monitoring
 
