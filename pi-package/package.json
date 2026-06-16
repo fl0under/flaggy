@@ -1,0 +1,8 @@
+{
+  "name": "pi-bounty-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pi skills/prompts for scoped legal bug bounty workflows.",
+  "keywords": ["pi", "bug-bounty", "agent", "security", "skills"],
+  "files": ["skills", "prompts", "extensions", "README.md"]
+}

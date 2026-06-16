@@ -1,0 +1,23 @@
+# Only targets listed here can be used by bbctl templates and agent prompts.
+# Keep this strict. Use local labs / VDP / bug bounty assets you are explicitly authorized to test.
+program: local-lab
+policy_url: "http://localhost/policy"
+mode: offline-lab
+allowed_targets:
+  - name: toy-web
+    base_url: "http://127.0.0.1:8080"
+    notes: "Local intentionally vulnerable training service included in benchmarks/local-toy-web."
+    max_rate_per_minute: 30
+allowed_networks:
+  - "127.0.0.1/32"
+  - "localhost"
+forbidden_actions:
+  - denial_of_service
+  - credential_stuffing
+  - persistence
+  - stealth
+  - data_exfiltration
+  - destructive_changes
+reporting:
+  out_dir: runs
+  evidence_dir: evidence

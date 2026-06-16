@@ -1,0 +1,22 @@
+model:
+  provider: openrouter
+  default_model: "anthropic/claude-sonnet-4.5"
+  fallback_model: "openai/gpt-5.1-codex"
+  temperature: 0.2
+runtime:
+  orchestrator: tmux
+  default_image: "nwodtuhs/exegol:free"
+  workspace_mount: "$PWD:/workspace"
+  max_agents: 4
+  session_prefix: "bb"
+  require_scope: true
+agents:
+  scout:
+    role: "Map an authorized target and propose safe, non-destructive hypotheses."
+    budget_minutes: 20
+  reviewer:
+    role: "Review evidence, reduce false positives, and prepare a concise report."
+    budget_minutes: 20
+  reproducer:
+    role: "Reproduce only within the explicit scope and stop before destructive impact."
+    budget_minutes: 20

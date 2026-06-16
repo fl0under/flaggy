@@ -1,148 +1,179 @@
-# flaggy
-a little LLM powered friend to find flags in CTFs
+# bounty-pi-agent
 
-This project is in early stages! Documentation may not be updated and the code is evolving.
+A simple, hackable prototype for running **scoped, legal bug bounty / vulnerability research agents** with:
 
-flaggy uses DSPy in a Chain of Thought (CoT) loop to solve capture the flag challenges.
-It runs in a [Exegol](https://exegol.com/) docker container - it provides common tools for solving CTFs.
+- **Pi** as the interactive model harness.
+- **OpenRouter** for direct LLM calls where the controller needs a small planning/review step.
+- **tmux** for native, inspectable multi-agent orchestration.
+- **Docker / Exegol** as the default operator container.
+- **Harbor** integration points for future benchmark runs, rollouts, and RL-style data collection.
 
-I recommend starting with gpt-5-mini or grok-4-fast as capable and cost effective models.
+The main design choice: no giant hardcoded workflow. The controller prepares scope-bounded prompts, starts isolated workspaces, records logs, and lets Pi + shell tools do the work.
 
-## Installation
+## Safety boundary
 
-### Prerequisites
-- Python 3.9+
-- [uv](https://github.com/astral-sh/uv) for Python package management
-- Docker and Docker Compose for containers and database
-- [Exegol wrapper](https://exegol.readthedocs.io/) for container management
-- Internet connection for pulling Exegol image automatically
+This workbench is for authorized programs, VDPs, internal assets, local labs, and CTF-style practice only.
 
-### Setup
+The scaffold deliberately refuses to operate without a scope file. The agent contract forbids denial of service, stealth, persistence, credential attacks, destructive changes, data exfiltration, and broad internet scanning.
 
-1. **Install uv** (if not already installed):
-   ```bash
-   curl -LsSf https://astral.sh/uv/install.sh | sh
-   ```
+## Repo map
 
-2. **Install Exegol wrapper**:
-   ```bash
-   # Install Exegol wrapper globally
-   pip install exegol
-   ```
-
-3. **Clone and setup the project**:
-   ```bash
-   git clone https://github.com/fl0under/flaggy
-   cd flaggy
-   
-   # Install Python dependencies (includes Exegol)
-   uv sync
-   ```
-
-4. **One-step project init**:
-   ```bash
-   # This pulls Docker images, brings up Postgres (waits for healthy),
-   # writes .env (optionally with your API key), creates schema, syncs challenges,
-   # and pre-pulls the Exegol container image.
-   uv run flaggy init --api-key "your-openrouter-api-key"
-   ```
-
-5. **Run TUI**:
-   ```bash
-   uv run flaggy-tui
-   ```
-
-## Quick Start
-
-After setup, try solving a challenge:
-
-```bash
-# List available challenges
-uv run flaggy list-challenges
-
-# Solve the first challenge (service auto-starts if needed)
-uv run flaggy solve 1
-
-# Monitor progress in real-time (separate terminal)
-uv run flaggy-tui
+```text
+bbagent/                    Python controller package
+configs/scope.example.yaml  explicit allowlist and forbidden action policy
+configs/agents.example.yaml runtime/model/container settings
+tasks/example.local.yaml    example local lab task
+benchmarks/local-toy-web/   loopback-only toy benchmark service
+benchmarks/harbor/          Harbor integration notes
+pi-package/                 Pi skills/prompts skeleton
+tmux/tmux.conf              tmux helper bindings
+scripts/bbctl               repo-local bbctl wrapper
+scripts/monitor.py          tiny curses tmux monitor
+docker/controller.Dockerfile controller image with Pi + bbctl
+docker/compose.yaml         optional Docker Compose controller
 ```
 
-### Additional commands
+## Quick start: local, no Docker
 
-- `uv run flaggy list-attempts [--successful] [--verbose]`
-  - Shows previous runs; `--verbose` will print flags. Use with care.
-- `uv run flaggy optimize [--min-attempts N] [--method bootstrap|mipro] [--max-demos N] [--name NAME]`
-  - Creates an optimized agent from successful attempts.
-- `uv run flaggy list-agents` / `uv run flaggy inspect-agent <name>`
-  - Manage and inspect saved optimized agents.
-- `uv run flaggy service start [--parallel N]`
-  - Starts the shared background service (auto-starts when running `solve` or the TUI).
-- `uv run flaggy service stop`
-  - Stops the background service.
-- `uv run flaggy test-mount <challenge_id>`
-  - Verifies container mounting and tool availability without running the LLM.
-- `uv run flaggy dspy-gepa-optimize --train 1,2,3 [--dev 4,5] [--auto light|medium|heavy|none] [...]`
-  - Runs the official DSPy GEPA optimizer on selected challenges.
-
-## Architecture
-
-- **Agent**: DSPy-powered LLM agent using OpenRouter
-- **Containers**: Exegol Docker containers for isolated execution
-- **Database**: PostgreSQL for tracking challenges, attempts, and steps
-- **TUI**: Textual-based terminal interface for monitoring
-- **Orchestrator**: Python-based job queue and worker management
-
-## TUI
-
-Run with `uv run flaggy-tui`. Key bindings: `y` copies the current attempt's flag to the clipboard, `q` quits.
-
-## Development
-
-### Install dev dependencies
 ```bash
-uv sync --group dev
+cd bounty-pi-agent
+python -m venv .venv
+. .venv/bin/activate
+pip install -e .
+
+# Terminal 1: local lab
+python benchmarks/local-toy-web/app.py
+
+# Terminal 2: validate scope and create a plan
+scripts/bbctl scope-check configs/scope.example.yaml
+scripts/bbctl prompt tasks/example.local.yaml
+scripts/bbctl launch tasks/example.local.yaml --no-docker
+
+tmux attach -t bb-local-lab
 ```
 
-### Run tests
+For an OpenRouter-generated plan:
+
 ```bash
-uv run pytest
+cp .env.example .env
+export OPENROUTER_API_KEY=sk-or-...
+scripts/bbctl plan tasks/example.local.yaml --model anthropic/claude-sonnet-4.5
 ```
 
-### Code formatting
+## Quick start: controller Docker image
+
 ```bash
-uv run black ctf_solver/
-uv run ruff check ctf_solver/
+cd bounty-pi-agent/docker
+cp ../.env.example ../.env
+# edit ../.env
+
+docker compose build
+docker compose run --rm controller bash
+
+# inside the controller
+bbctl scope-check configs/scope.example.yaml
+bbctl launch tasks/example.local.yaml --no-docker
 ```
 
-### Type checking
+The compose file mounts `/var/run/docker.sock` so the controller can launch Exegol containers. That is convenient but equivalent to giving the container host-level power; remove that mount if you do not want nested Docker orchestration.
+
+## Exegol mode
+
+The default `configs/agents.example.yaml` image is `nwodtuhs/exegol:free`; switch to `light` or `web` in `configs/agents.example.yaml` if your Exegol setup has those images available.
+
 ```bash
-uv run mypy ctf_solver/
+scripts/install-exegol-my-resources.sh
+scripts/bbctl launch tasks/example.local.yaml
 ```
 
-## Configuration
+That starts a tmux window with a transparent `docker run ...` command. If Pi is not installed in the Exegol image, the shell prints the prompt and drops you into bash. You can either install Pi through Exegol my-resources, use the controller image, or keep Pi outside the target container and attach shells manually.
 
-Environment variables:
-- `CTF_DSN`: PostgreSQL connection string
-- `OPENROUTER_API_KEY`: Required API key for OpenRouter
-- `CTF_MODEL`: Model to use (default: anthropic/claude-3.5-sonnet)
+## tmux monitoring
 
-Notes:
-- `.env` is read from the project root when commands are run from that directory. If you run from elsewhere, set environment variables explicitly.
-- Exegol image pulls can be large on first run; the initial setup may take several minutes.
-- On WSL2, ensure Docker Desktop integration is enabled and port 5432 is accessible from Linux; use `docker compose ps` to confirm health.
+```bash
+scripts/monitor.py bb-local-lab
+scripts/bbctl status bb-local-lab
+scripts/bbctl tail bb-local-lab 1 --lines 80
+```
 
-Advanced init options:
-- `uv run flaggy init --force-env` to overwrite an existing `.env`.
-- `uv run flaggy init --reset` to drop and recreate DB tables.
-- `uv run flaggy init --skip-challenges` to skip syncing `./challenges`.
-- `uv run flaggy init --skip-pull` to skip pulling the Exegol image.
+Optional tmux bindings:
 
-Security & privacy:
-- You are running untrusted challenge binaries—keep them inside containers.
-- Challenge data and outputs may be sent to LLM providers via OpenRouter. Avoid sending real competition flags or proprietary data.
+```bash
+cat tmux/tmux.conf >> ~/.tmux.conf
+```
 
-Tested Python versions: 3.9–3.12
+Inside tmux:
 
-## License
+- `prefix + B` shows `bbctl status`.
+- `prefix + L` tails the current pane in a popup.
 
-MIT
+## Scope files
+
+A scope file is a strict allowlist:
+
+```yaml
+program: local-lab
+allowed_targets:
+  - name: toy-web
+    base_url: "http://127.0.0.1:8080"
+allowed_networks:
+  - "127.0.0.1/32"
+forbidden_actions:
+  - denial_of_service
+  - credential_stuffing
+  - persistence
+  - stealth
+  - data_exfiltration
+  - destructive_changes
+```
+
+Every task points to a scope file and a named target. The prompt renderer injects the scope into the agent instructions.
+
+## Pi package
+
+The `pi-package/` directory is intentionally mostly skills/prompts rather than TypeScript extension code. This keeps the first version auditable and avoids locking the workbench to Pi internals.
+
+Use the skills as patterns for:
+
+- scoped scouting,
+- evidence review,
+- report writing.
+
+Future Pi extension commands can shell out to `bbctl`:
+
+- `/bb-status`
+- `/bb-spawn <task>`
+- `/bb-scope`
+- `/bb-report`
+
+## Harbor / benchmark plan
+
+The useful benchmark metrics for this project are not “got shell”. They are:
+
+- stayed in scope,
+- produced reproducible evidence,
+- minimized false positives,
+- stopped before risky actions,
+- wrote a clear report,
+- used tools efficiently.
+
+Start with local Docker labs and validators that grade the final report. Later, pipe run trajectories into Harbor for model/harness comparisons and rollout generation.
+
+## Commands
+
+```bash
+bbctl scope-check <scope.yaml>
+bbctl prompt <task.yaml>
+bbctl plan <task.yaml> [--model openrouter/model]
+bbctl launch <task.yaml> [--config configs/agents.example.yaml] [--no-docker]
+bbctl status <tmux-session>
+bbctl tail <tmux-session> <window> [--lines 120]
+```
+
+## Next implementation steps
+
+1. Add a real Pi TypeScript extension once your installed Pi version is pinned.
+2. Add a Docker network profile per bug bounty program so agents cannot accidentally leave scope.
+3. Add validators for local benchmarks: report contains evidence, target is scoped, no forbidden action was logged.
+4. Add a trajectory exporter from Pi session JSONL + tmux logs into Harbor manifests.
+5. Add model-routing experiments: cheap scout model, stronger reviewer model, local RE-specialist model later.

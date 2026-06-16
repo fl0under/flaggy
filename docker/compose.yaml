@@ -1,0 +1,17 @@
+services:
+  controller:
+    build:
+      context: ..
+      dockerfile: docker/controller.Dockerfile
+    image: bounty-pi-controller:latest
+    working_dir: /workspace
+    env_file:
+      - ../.env
+    volumes:
+      - ..:/workspace
+      # Optional but convenient: lets the controller launch Exegol containers.
+      # Treat this as equivalent to host root access.
+      - /var/run/docker.sock:/var/run/docker.sock
+    network_mode: host
+    tty: true
+    stdin_open: true
