@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Build the Flaggy operator image (Exegol + Terminus-friendly defaults).
+#
+# Usage:
+#   scripts/build-operator [tag]
+#
+# Env:
+#   FLAGGY_OPERATOR_TAG   image tag to build       (default: flaggy-operator:latest)
+#   EXEGOL_TAG            Exegol base image tag     (default: full)
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TAG="${1:-${FLAGGY_OPERATOR_TAG:-flaggy-operator:latest}}"
+EXEGOL_TAG="${EXEGOL_TAG:-full}"
+
+echo "[build] image:      $TAG"
+echo "[build] base:       nwodtuhs/exegol:$EXEGOL_TAG"
+echo "[build] context:    $ROOT/operator"
+echo "[build] note: the Exegol base is large (~30-50GB); first build/pull is slow."
+
+docker build \
+  --build-arg EXEGOL_TAG="$EXEGOL_TAG" \
+  -t "$TAG" \
+  "$ROOT/operator"
+
+echo "[build] done -> $TAG"
+echo "[build] smoke test:  scripts/operator-smoketest $TAG"
+echo "[build] use (Harbor): flaggy export <task.yaml> --docker-image $TAG --force"
+echo "[build] use (manual): flaggy interactive <task> --image $TAG"

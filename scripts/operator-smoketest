@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Verify a Flaggy operator image can host Terminus-2:
+#   1. PID 1 stays alive (Exegol wrapper entrypoint neutralised),
+#   2. `docker exec` works and tmux/bash are present,
+#   3. a tmux pane can be opened, fed keystrokes, and screen-scraped
+#      (exactly how Terminus drives the container).
+#
+# Usage:
+#   scripts/operator-smoketest [tag]
+set -euo pipefail
+
+TAG="${1:-${FLAGGY_OPERATOR_TAG:-flaggy-operator:latest}}"
+NAME="flaggy-smoke-$$"
+echo "[smoke] image: $TAG"
+
+cleanup() { docker rm -f "$NAME" >/dev/null 2>&1 || true; }
+trap cleanup EXIT
+
+# 1. Container must boot and stay alive (entrypoint neutralised, PID 1 quiet).
+docker run -d --name "$NAME" "$TAG" >/dev/null
+sleep 1
+if [[ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != "true" ]]; then
+  echo "[smoke] FAIL: container is not running — check ENTRYPOINT/CMD override" >&2
+  docker logs "$NAME" 2>&1 | tail -20 >&2 || true
+  exit 1
+fi
+echo "[smoke] PASS: container stays alive"
+
+# 2. exec + required tools.
+if ! docker exec "$NAME" bash -lc 'command -v tmux >/dev/null && command -v bash >/dev/null'; then
+  echo "[smoke] FAIL: tmux/bash not available via exec" >&2
+  exit 1
+fi
+echo "[smoke] PASS: exec works; tmux $(docker exec "$NAME" tmux -V)"
+
+# 3. Terminus-style interaction: new-session -> send-keys -> capture-pane.
+if docker exec "$NAME" bash -lc '
+    set -e
+    tmux new-session -d -s t -x 200 -y 50
+    tmux send-keys -t t "echo FLAGGY_PANE_OK; id -un" Enter
+    sleep 1
+    out="$(tmux capture-pane -t t -p)"
+    echo "$out" | tail -3
+    echo "$out" | grep -q FLAGGY_PANE_OK
+  '; then
+  echo "[smoke] PASS: tmux pane interaction works"
+else
+  echo "[smoke] FAIL: could not drive a tmux pane" >&2
+  exit 1
+fi
+
+echo "[smoke] ALL PASS — '$TAG' is Terminus-ready"

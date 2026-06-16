@@ -47,14 +47,17 @@ def resolve_interactive_task(
     )
 
 
-def interactive_command(task_dir: Path, *, tool: str = "shell", image_tag: str | None = None) -> list[str]:
+def interactive_command(
+    task_dir: Path,
+    *,
+    tool: str = "shell",
+    image_tag: str | None = None,
+    image: str | None = None,
+) -> list[str]:
     if not shutil.which("docker"):
         raise InteractiveError("docker is not installed or not on PATH")
     task_dir = task_dir.resolve()
     env_dir = task_dir / "environment"
-    if not (env_dir / "Dockerfile").exists():
-        raise InteractiveError(f"Missing environment/Dockerfile in {task_dir}")
-    tag = image_tag or f"flaggy-interactive-{slugify(task_dir.name)}"
     logs_dir = task_dir / ".interactive" / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
     instruction = task_dir / "instruction.md"
@@ -62,6 +65,24 @@ def interactive_command(task_dir: Path, *, tool: str = "shell", image_tag: str |
 
     if tool not in {"shell", "pi"}:
         raise InteractiveError("--tool must be 'shell' or 'pi'")
+
+    # Two modes:
+    #   * default: build the task's environment/Dockerfile (workdir files are
+    #     baked into the image via COPY).
+    #   * --image: reuse a prebuilt image (e.g. the Exegol-based operator image)
+    #     and mount the task's workdir so its files are present without a rebuild.
+    extra_mounts: list[str] = []
+    if image:
+        run_image = image
+        build: list[str] | None = None
+        workdir = env_dir / "workdir"
+        if workdir.exists():
+            extra_mounts = ["-v", f"{workdir}:/app"]
+    else:
+        if not (env_dir / "Dockerfile").exists():
+            raise InteractiveError(f"Missing environment/Dockerfile in {task_dir}")
+        run_image = image_tag or f"flaggy-interactive-{slugify(task_dir.name)}"
+        build = ["docker", "build", "-t", run_image, str(env_dir)]
 
     if tool == "pi":
         inner = (
@@ -82,7 +103,6 @@ def interactive_command(task_dir: Path, *, tool: str = "shell", image_tag: str |
             "exec bash"
         )
 
-    build = ["docker", "build", "-t", tag, str(env_dir)]
     run = [
         "docker",
         "run",
@@ -90,17 +110,20 @@ def interactive_command(task_dir: Path, *, tool: str = "shell", image_tag: str |
         "-it",
         "--network",
         network,
+        *extra_mounts,
         "-v",
         f"{logs_dir}:/logs",
         "-v",
         f"{instruction}:/app/instruction.md:ro",
         "-e",
         f"FLAGGY_INTERACTIVE_TOOL={tool}",
-        tag,
+        run_image,
         "bash",
         "-lc",
         inner,
     ]
+    if build is None:
+        return ["bash", "-lc", shlex.join(run)]
     return ["bash", "-lc", shlex.join(build) + " && " + shlex.join(run)]
 
 
@@ -112,6 +135,7 @@ def run_interactive(
     base_image: str = "python:3.12-slim",
     tool: str = "shell",
     image_tag: str | None = None,
+    image: str | None = None,
 ) -> int:
     task_dir = resolve_interactive_task(
         task_or_dir,
@@ -119,5 +143,5 @@ def run_interactive(
         force=force,
         base_image=base_image,
     )
-    cmd = interactive_command(task_dir, tool=tool, image_tag=image_tag)
+    cmd = interactive_command(task_dir, tool=tool, image_tag=image_tag, image=image)
     return subprocess.call(cmd)

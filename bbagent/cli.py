@@ -58,6 +58,7 @@ def cmd_interactive(args: argparse.Namespace) -> int:
             base_image=args.base_image,
             tool=args.tool,
             image_tag=args.image_tag,
+            image=args.image,
         )
     except (InteractiveError, HarborExportError, ScopeError, Exception) as exc:
         console.print(f"[red]Interactive launch failed:[/red] {exc}")
@@ -92,7 +93,8 @@ def build_parser() -> argparse.ArgumentParser:
     i.add_argument("--force", action="store_true", help="Re-export if task_or_dir is a YAML task and the Harbor task exists")
     i.add_argument("--base-image", default="python:3.12-slim", help="Base image used if exporting first")
     i.add_argument("--tool", choices=["shell", "pi"], default="shell", help="Start a shell, or try Pi and fall back to shell")
-    i.add_argument("--image-tag", help="Docker tag for the interactive image")
+    i.add_argument("--image-tag", help="Docker tag for the image built from the task's environment/Dockerfile")
+    i.add_argument("--image", help="Use a prebuilt image (e.g. flaggy-operator:latest) instead of building the task Dockerfile; the task workdir is mounted at /app")
     i.set_defaults(func=cmd_interactive)
 
     return p

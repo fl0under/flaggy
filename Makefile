@@ -1,4 +1,4 @@
-.PHONY: setup test check export lab
+.PHONY: setup test check export lab operator operator-smoketest
 
 setup:
 	uv sync
@@ -14,3 +14,9 @@ export:
 
 lab:
 	uv run python benchmarks/local-toy-web/app.py
+
+operator:
+	scripts/build-operator
+
+operator-smoketest:
+	scripts/operator-smoketest

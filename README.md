@@ -23,7 +23,10 @@ benchmarks/flaggy/          generated Harbor tasks
 benchmarks/harbor/          Harbor workflow notes
 docs/HARBOR_FIRST.md        architecture notes
 pi-package/                 optional Pi prompts/skills, not an orchestration layer
+operator/Dockerfile         Exegol-based operator image for Harbor + interactive
 scripts/flaggy              repo-local uv wrapper
+scripts/build-operator      build the Exegol operator image
+scripts/operator-smoketest  check the operator image can host Terminus (tmux)
 scripts/ghidra-headless     headless Ghidra decompile helper
 scripts/ghidra/             Ghidra post-scripts
 ```
@@ -58,8 +61,8 @@ PYTHONPATH=. python -m bbagent.cli export tasks/example.local.yaml --force
 
 ```bash
 flaggy check <scope.yaml>
-flaggy export <task.yaml> [--out benchmarks/flaggy] [--force]
-flaggy interactive <task.yaml-or-harbor-task-dir> [--tool shell|pi]
+flaggy export <task.yaml> [--out benchmarks/flaggy] [--docker-image IMG] [--force]
+flaggy interactive <task.yaml-or-harbor-task-dir> [--tool shell|pi] [--image IMG]
 ```
 
 That is deliberately the whole interface.
@@ -128,6 +131,43 @@ benchmarks/flaggy/<task-id>/.interactive/logs/artifacts/
 `--tool pi` runs `pi @/app/instruction.md` if `pi` is installed in the generated image. If not, it drops to bash in the same environment. To make Pi always available, use a base image that already contains Pi or edit the generated `environment/Dockerfile`.
 
 Interactive mode maps Harbor `network_mode = "no-network"` to Docker `--network none`. For allowlisted/public tasks it uses Docker's default bridge network; Harbor remains the stricter runner for eval/RL runs.
+
+## Operator image (Exegol)
+
+For real reverse-engineering and bug-bounty work you usually want a full
+offensive toolkit rather than the minimal generated environment. The `operator/`
+image is [Exegol](https://exegol.com) plus a few Terminus/Harbor-friendly tweaks
+(neutralised wrapper entrypoint, a clean deterministic bash prompt for tmux
+screen-scraping, and tmux assertions). Build it **once** and reuse it; the Exegol
+base is large (~30-50GB), so you do not want to rebuild it per task.
+
+```bash
+# Build the operator image once (add your extra tools in operator/Dockerfile).
+scripts/build-operator                      # -> flaggy-operator:latest
+
+# Verify it can host Terminus (PID 1 alive, exec works, tmux pane drivable).
+scripts/operator-smoketest flaggy-operator:latest
+```
+
+Use it as the **Harbor agent environment** by writing it into the task's
+`[environment].docker_image`:
+
+```bash
+flaggy export tasks/example.ctf.yaml --docker-image flaggy-operator:latest --force
+harbor run -p benchmarks/flaggy/ctf-crackme-re -a terminus-2 -m <model>
+```
+
+Use the **same image** as your manual workbench, without a per-task rebuild
+(the task workdir is mounted at `/app`):
+
+```bash
+flaggy interactive benchmarks/flaggy/ctf-crackme-re --image flaggy-operator:latest
+```
+
+Because Terminus only ever opens a tmux pane and sends keystrokes, and Exegol
+already ships tmux, Terminus runs unmodified inside this image. For eval/RL runs,
+pin a digest (`FROM nwodtuhs/exegol@sha256:...`) in `operator/Dockerfile` for
+reproducibility.
 
 ## Scope files
 
