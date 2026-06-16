@@ -1,0 +1,29 @@
+# Example scope for CTF practice / reverse engineering.
+# Demonstrates non-web target kinds: `binary` (a local file to analyze) and
+# `host` (a host:port service, e.g. a local pwn challenge). Keep everything
+# loopback / locally authorized.
+program: ctf-practice
+policy_url: null
+mode: ctf
+allowed_targets:
+  - name: crackme
+    kind: binary
+    path: ./challenges/crackme
+    notes: "Local CTF binary to reverse statically. Decompile with scripts/ghidra-headless."
+  - name: pwn-remote
+    kind: host
+    host: 127.0.0.1
+    port: 31337
+    notes: "Local practice pwn service (loopback only)."
+allowed_networks:
+  - "127.0.0.1/32"
+  - "localhost"
+forbidden_actions:
+  - denial_of_service
+  - persistence
+  - stealth
+  - data_exfiltration
+  - destructive_changes
+reporting:
+  out_dir: runs
+  evidence_dir: evidence

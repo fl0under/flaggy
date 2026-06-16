@@ -24,7 +24,7 @@ def cmd_scope_check(args: argparse.Namespace) -> int:
         return 2
     console.print(f"[green]Scope OK[/green] — {scope.program} ({scope.mode})")
     for t in scope.allowed_targets:
-        console.print(f"  • {t.name}: {t.base_url}")
+        console.print(f"  • ({t.kind}) {t.name}: {t.locator()}")
     return 0
 
 
@@ -51,7 +51,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     user = (
         "Create a safe, legal, non-destructive work plan for this task. "
         "Use numbered steps, include stopping points for human approval, and avoid exploit instructions. "
-        f"Target URL: {target.base_url}"
+        f"Target ({target.kind}): {target.locator()}"
     )
     result = client.chat([
         {"role": "system", "content": system},

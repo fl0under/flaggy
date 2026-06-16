@@ -154,7 +154,30 @@ forbidden_actions:
   - destructive_changes
 ```
 
-Every task points to a scope file and a named target. The prompt renderer injects the scope into the agent instructions.
+Targets come in three kinds. `kind` defaults to `web` for backward
+compatibility:
+
+```yaml
+allowed_targets:
+  - name: toy-web                 # web service (default kind)
+    kind: web
+    base_url: "http://127.0.0.1:8080"
+  - name: crackme                 # local binary to reverse engineer
+    kind: binary
+    path: ./challenges/crackme
+  - name: pwn-remote              # host:port service (e.g. CTF pwn)
+    kind: host
+    host: 127.0.0.1
+    port: 31337
+```
+
+- `web` targets are enforced for HTTP egress via `assert_url_allowed`.
+- `host` targets are enforced via `assert_host_allowed(host, port)`.
+- `binary` targets name a local file the agent is authorized to analyze.
+
+See `configs/scope.ctf.example.yaml` + `tasks/example.ctf.yaml` for a
+reverse-engineering example. Every task points to a scope file and a named
+target; the prompt renderer injects the scope into the agent instructions.
 
 ## Pi package
 
