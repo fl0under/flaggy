@@ -244,14 +244,22 @@ bbctl plan <task.yaml> [--model openrouter/model]
 bbctl launch <task.yaml> [--config configs/agents.example.yaml] [--no-docker] [--no-record]
 bbctl status <tmux-session>
 bbctl tail <tmux-session> <window> [--lines 120]
-bbctl record <run_dir> <session> <window> [--interval 5] [--lines 2000]
+bbctl record <run_dir> <session> [--target window.pane ...] [--interval 5] [--lines 2000]
 bbctl report <run_dir>
 bbctl grade <run_dir> [--write] [--json]
 ```
 
 `record` is started automatically by `launch` as a detached background
-process; you'd only run it directly to re-attach logging to a window that was
-started without one.
+process; you'd only run it directly to re-attach logging to a session that was
+started without one. By default it polls and tails *every* pane in the
+session, re-discovering panes on each poll, so a pane the agent opens mid-task
+(e.g. `tmux split-window ... gdb ./challenge`, see the `reverse-engineering`
+skill) is picked up automatically and folded into `transcript.log` with a
+`[window.pane]` tag — pass `--target` one or more times to record only
+specific panes instead. This only sees panes inside the launch tmux session,
+which means it only works in `--no-docker` mode; in Docker launch mode the
+agent's container has no tmux socket mounted, so panes it might want to open
+for interactive tools live outside the host session and are not recorded.
 
 ## Next implementation steps
 

@@ -82,14 +82,21 @@ def cmd_launch(args: argparse.Namespace) -> int:
 def cmd_record(args: argparse.Namespace) -> int:
     run = RunLog.attach(args.run_dir)
     session = TmuxSession(args.session)
+    fixed_targets = args.target or None
 
-    def capture() -> str:
-        return session.capture(args.window, lines=args.lines)
+    def list_targets() -> list[str]:
+        return fixed_targets if fixed_targets else session.pane_targets()
 
-    def is_alive() -> bool:
-        return session.window_exists(args.window)
+    def capture(target: str) -> str:
+        return session.capture(target, lines=args.lines)
 
-    record_session(run, capture, is_alive=is_alive, interval=args.interval)
+    record_session(
+        run,
+        list_targets,
+        capture,
+        session_alive=session.exists,
+        interval=args.interval,
+    )
     return 0
 
 
@@ -198,12 +205,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     rc = sub.add_parser(
         "record",
-        help="Tail a tmux window into <run_dir>/transcript.log until it closes "
+        help="Tail every pane in a tmux session into <run_dir>/transcript.log until the "
+        "session closes, auto-discovering new panes (e.g. a gdb split) as they appear "
         "(started automatically by launch; rarely invoked directly)",
     )
     rc.add_argument("run_dir")
     rc.add_argument("session")
-    rc.add_argument("window")
+    rc.add_argument(
+        "--target",
+        action="append",
+        help="Pane target ('window' or 'window.pane') to record, instead of auto-discovering "
+        "all panes. May be passed multiple times.",
+    )
     rc.add_argument("--interval", type=float, default=5.0)
     rc.add_argument("--lines", type=int, default=2000)
     rc.set_defaults(func=cmd_record)

@@ -84,13 +84,14 @@ def docker_pi_command(image: str, prompt_file: Path, workspace_mount: str, *, pr
     )
 
 
-def start_recorder(run: RunLog, session_name: str, window_name: str) -> int:
-    """Spawn a detached background process tailing the tmux window into transcript.log.
+def start_recorder(run: RunLog, session_name: str) -> int:
+    """Spawn a detached background process tailing every pane in the session into transcript.log.
 
     Detached (start_new_session) so it outlives this CLI invocation and keeps
-    recording for as long as the launched window exists.
+    recording, discovering new panes (e.g. a gdb split opened mid-task), for as
+    long as the launched session exists.
     """
-    cmd = [sys.executable, "-m", "bbagent.cli", "record", str(run.dir), session_name, window_name]
+    cmd = [sys.executable, "-m", "bbagent.cli", "record", str(run.dir), session_name]
     log_file = (run.dir / "recorder.out").open("w")
     proc = subprocess.Popen(cmd, stdout=log_file, stderr=subprocess.STDOUT, start_new_session=True)
     (run.dir / "recorder.pid").write_text(str(proc.pid))
@@ -127,7 +128,7 @@ def launch_task(task_path: str, config_path: str, *, no_docker: bool = False, re
         "events": str(run.events_path),
     }
     if record:
-        recorder_pid = start_recorder(run, session.name, window_name)
+        recorder_pid = start_recorder(run, session.name)
         run.write("recorder_started", f"Started background recorder pid={recorder_pid}")
         info["transcript"] = str(run.dir / "transcript.log")
     return info

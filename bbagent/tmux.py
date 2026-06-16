@@ -47,14 +47,14 @@ class TmuxSession:
         target = f"{self.name}:{window}"
         return _run(["capture-pane", "-p", "-t", target, "-S", f"-{lines}"]).stdout
 
-    def window_exists(self, window: str | int) -> bool:
-        """Check for a window without creating the session (unlike list_windows/ensure)."""
+    def pane_targets(self) -> list[str]:
+        """List every pane in the session as 'window_name.pane_index', without creating it.
+
+        Used by the recorder to discover panes the agent opens mid-task (e.g. a
+        split-window gdb session) so they get folded into the same transcript.
+        """
         if not self.exists():
-            return False
-        fmt = "#{window_index}\t#{window_name}"
-        out = _run(["list-windows", "-t", self.name, "-F", fmt], check=False).stdout
-        for line in out.splitlines():
-            idx, name = (line.split("\t") + ["", ""])[:2]
-            if idx == str(window) or name == window:
-                return True
-        return False
+            return []
+        fmt = "#{window_name}.#{pane_index}"
+        out = _run(["list-panes", "-s", "-t", self.name, "-F", fmt], check=False).stdout
+        return [line for line in out.splitlines() if line]

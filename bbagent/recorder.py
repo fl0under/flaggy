@@ -28,33 +28,46 @@ def _new_lines(previous: list[str], current: list[str]) -> list[str]:
 
 def record_session(
     run: RunLog,
-    capture: Callable[[], str],
+    list_targets: Callable[[], list[str]],
+    capture: Callable[[str], str],
     *,
-    is_alive: Callable[[], bool],
+    session_alive: Callable[[], bool],
     interval: float = 5.0,
     sleep: Callable[[float], None] = time.sleep,
 ) -> None:
-    """Poll a tmux pane and append newly seen output to transcript.log.
+    """Poll every pane in a tmux session and append newly seen output to transcript.log.
 
-    Runs until `is_alive()` reports the window is gone, so it's meant to be
-    started as a detached background process for the lifetime of a launched
-    task window (see orchestrator.start_recorder).
+    Targets are (re)discovered on every poll via `list_targets()`, so a pane the
+    agent opens mid-task (e.g. a split-window gdb session) is picked up
+    automatically without restarting the recorder. Each line is tagged with the
+    target it came from. Runs until `session_alive()` reports the session is
+    gone, so it's meant to be started as a detached background process for the
+    lifetime of a launched task (see orchestrator.start_recorder).
     """
-    previous: list[str] = []
-    run.write("recording_started", "Pane recorder attached")
-    while is_alive():
+    previous: dict[str, list[str]] = {}
+    run.write("recording_started", "Session recorder attached")
+    while session_alive():
         try:
-            content = capture()
-        except Exception as exc:  # tmux can vanish between is_alive() and capture()
+            targets = list_targets()
+        except Exception as exc:
             run.write("recording_error", str(exc))
             break
-        current = content.splitlines()
-        new = _new_lines(previous, current)
-        if new:
-            stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-            chunk = "".join(f"[{stamp}] {line}\n" for line in new)
-            run.append_text(TRANSCRIPT_NAME, chunk)
-            run.write("pane_update", f"{len(new)} new line(s) captured")
-        previous = current
+        for target in targets:
+            if target not in previous:
+                previous[target] = []
+                run.write("target_discovered", f"New pane discovered: {target}", {"target": target})
+            try:
+                content = capture(target)
+            except Exception as exc:  # tmux can vanish between list_targets() and capture()
+                run.write("recording_error", f"{target}: {exc}")
+                continue
+            current = content.splitlines()
+            new = _new_lines(previous[target], current)
+            if new:
+                stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                chunk = "".join(f"[{stamp}][{target}] {line}\n" for line in new)
+                run.append_text(TRANSCRIPT_NAME, chunk)
+                run.write("pane_update", f"{len(new)} new line(s) captured", {"target": target})
+            previous[target] = current
         sleep(interval)
-    run.write("recording_stopped", "tmux window no longer present")
+    run.write("recording_stopped", "tmux session no longer present")
