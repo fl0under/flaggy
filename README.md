@@ -24,6 +24,7 @@ benchmarks/harbor/          Harbor workflow notes
 docs/HARBOR_FIRST.md        architecture notes
 pi-package/                 optional Pi prompts/skills, not an orchestration layer
 operator/Dockerfile         Exegol-based operator image for Harbor + interactive
+docs/CYBENCH.md             recipe: run Cybench (and similar) on the operator image
 scripts/flaggy              repo-local uv wrapper
 scripts/build-operator      build the Exegol operator image
 scripts/operator-smoketest  check the operator image can host Terminus (tmux)
@@ -63,6 +64,7 @@ PYTHONPATH=. python -m bbagent.cli export tasks/example.local.yaml --force
 flaggy check <scope.yaml>
 flaggy export <task.yaml> [--out benchmarks/flaggy] [--docker-image IMG] [--force]
 flaggy interactive <task.yaml-or-harbor-task-dir> [--tool shell|pi] [--image IMG]
+flaggy operatorize <task-dir-or-dataset-tree> [--image IMG] [--dry-run]
 ```
 
 That is deliberately the whole interface.
@@ -168,6 +170,24 @@ Because Terminus only ever opens a tmux pane and sends keystrokes, and Exegol
 already ships tmux, Terminus runs unmodified inside this image. For eval/RL runs,
 pin a digest (`FROM nwodtuhs/exegol@sha256:...`) in `operator/Dockerfile` for
 reproducibility.
+
+### External benchmarks (Cybench, NYU CTF, …)
+
+The CTF benchmarks the labs report on already have Harbor/Terminal-Bench
+adapters, so they live in their own repos and Flaggy just runs against them.
+Terminus runs *inside* each task container, so to use the operator toolbox you
+retarget each generated task's base image:
+
+```bash
+# After running an adapter (e.g. harbor-framework/terminal-bench adapters/cybench):
+flaggy operatorize /path/to/dataset/cybench --image flaggy-operator:latest
+tb run --agent terminus --model <model> --dataset-path /path/to/dataset/cybench
+```
+
+`operatorize` rewrites only the final `FROM` of each `environment/Dockerfile`, so
+challenge files and build steps are preserved. CTF grading is exact-flag capture,
+giving a clean reward signal. See [docs/CYBENCH.md](docs/CYBENCH.md) for the full
+recipe and caveats.
 
 ## Scope files
 
