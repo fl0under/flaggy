@@ -204,7 +204,7 @@ def _render_task_toml(ch: Challenge) -> str:
         artifacts = ["/logs/agent/trajectory.json"]
 
         [task]
-        name = {json.dumps(ch.cid)}
+        name = {json.dumps(f"flaggy/{ch.cid}")}
         description = {json.dumps(f"Procedural {ch.category} CTF challenge (flag-graded).")}
         keywords = ["flaggy", "ctf", "training", {json.dumps(ch.category)}]
 
@@ -238,6 +238,9 @@ def _render_dockerfile() -> str:
     return textwrap.dedent(
         """
         FROM python:3.12-slim
+        RUN apt-get update \\
+            && apt-get install -y --no-install-recommends tmux asciinema \\
+            && rm -rf /var/lib/apt/lists/*
         WORKDIR /app
         COPY workdir/ /app/
         RUN mkdir -p /logs/artifacts

@@ -1,4 +1,4 @@
-"""Retarget Harbor / Terminal-Bench tasks onto a prebuilt operator image.
+"""Retarget Harbor task environments onto a prebuilt operator image.
 
 Terminus runs *inside* each task's own container, so to give the agent the
 Exegol toolbox you swap the base image of every task's `environment/Dockerfile`.
@@ -6,9 +6,9 @@ Rewriting only the final `FROM` preserves the rest of the build — including th
 `COPY` of challenge files and any target setup — so a CTF task still works, just
 with a richer toolbox underneath.
 
-This is deliberately format-agnostic: it only touches `environment/Dockerfile`,
-so it works on both `task.toml` (Harbor 2.x) and `task.yaml` (Terminal-Bench 1.x)
-adapter output such as `adapters/cybench`.
+This is deliberately format-agnostic: it only touches `environment/Dockerfile`.
+That lets Flaggy consume current Harbor tasks and legacy Terminal-Bench adapter
+output such as `adapters/cybench`, while still running the result through Harbor.
 """
 from __future__ import annotations
 
@@ -108,7 +108,7 @@ def operatorize_tree(root: str | Path, image: str, *, dry_run: bool = False) -> 
     task_dirs = find_task_dirs(root)
     if not task_dirs:
         raise OperatorizeError(
-            f"No Harbor/Terminal-Bench tasks under {root} "
+            f"No Harbor-compatible tasks under {root} "
             "(expected directories with environment/Dockerfile + task.toml|task.yaml)."
         )
     results = []

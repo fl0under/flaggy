@@ -1,15 +1,16 @@
 # Running Cybench on the Exegol operator image
 
 [Cybench](https://cybench.github.io/) is the CTF benchmark Anthropic reports in
-its Claude system cards. The Terminal-Bench / Harbor project ships a Cybench
-adapter that converts it into the standard task format, so Flaggy doesn't
-reimplement the benchmark — it just (a) provides the Exegol-based operator
-environment and (b) retargets the adapter's output onto it.
+its Claude system cards. Use Harbor as the runner. The upstream benchmark
+adapter lives in the Terminal-Bench repository today, but its output is a
+Harbor-compatible task tree. Flaggy does not reimplement the benchmark; it just
+(a) provides the Exegol-based operator environment and (b) retargets the
+adapter's output onto it.
 
-The flow is: **build the operator image once → generate Cybench tasks with the
-upstream adapter → `flaggy operatorize` to swap each task onto the operator image
-→ run with Terminus.** Because Terminus runs *inside* each task container,
-swapping the task's base image is what gives the agent your toolbox.
+The flow is: **build the operator image once -> generate Cybench tasks with the
+upstream adapter -> `flaggy operatorize` to swap each task onto the operator
+image -> run with Harbor + Terminus-2.** Because Terminus runs *inside* each task
+container, swapping the task's base image is what gives the agent your toolbox.
 
 ## 0. Build and verify the operator image (once)
 
@@ -56,23 +57,27 @@ flaggy operatorize /path/to/terminal-bench/dataset/cybench --image flaggy-operat
 Dockerfiles are flagged `(multi-stage: review)`: only the final stage is
 retargeted, builder stages are left alone.
 
-## 3. Validate, then run
+## 3. Validate, then run with Harbor
 
 Always re-check the oracle solutions after retargeting — swapping the toolbox can
 occasionally change behaviour:
 
 ```bash
-cd /path/to/terminal-bench
-
 # Oracle: confirm the known solutions still capture the flag.
-uv run tb run --agent oracle --dataset-path dataset/cybench --no-rebuild
+harbor run -p /path/to/terminal-bench/dataset/cybench \
+  -a oracle \
+  --no-force-build
 
-# Real run with Terminus + your model, in the operator environment.
-uv run tb run --agent terminus --model <provider/model> --dataset-path dataset/cybench
+# Real run with Terminus-2 + your model, in the operator environment.
+harbor run -p /path/to/terminal-bench/dataset/cybench \
+  -a terminus-2 \
+  -m <provider/model>
 
 # A single challenge:
-uv run tb run --agent terminus --model <provider/model> \
-  --dataset-path dataset/cybench --task-id "<benchmark-name>"
+harbor run -p /path/to/terminal-bench/dataset/cybench \
+  -a terminus-2 \
+  -m <provider/model> \
+  --include-task-name "<benchmark-name>"
 ```
 
 (Grading is exact-flag capture, so you get a clean, ungameable reward — ideal for
@@ -87,8 +92,9 @@ model comparison and RL, unlike the report-rubric used for the local bounty task
 - **Multi-service challenges.** `operatorize` only touches the solver
   `environment/Dockerfile`. Separate target services (defined in a compose file)
   are intentionally left as-is — Exegol is the attacker box, not the target.
-- **Image size.** The Exegol base is large; pass `--no-rebuild` to the oracle
-  run after the first build, and pre-pull the operator image on remote runners.
+- **Image size.** The Exegol base is large; pass `--no-force-build` to the
+  oracle run after the first build, and pre-pull the operator image on remote
+  runners.
 - **Scaling out.** Once one challenge runs end to end, add `--n-concurrent N` and
   a cloud `--env` (Daytona/Modal) to fan out, and point the same operator image
   at NYU CTF or other adapters the same way.

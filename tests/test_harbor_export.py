@@ -23,7 +23,7 @@ def test_export_local_task_to_harbor(tmp_path: Path):
     assert "http://127.0.0.1:8080" in instruction
 
     task_toml = (task_dir / "task.toml").read_text()
-    assert 'name = "local-toy-header-review"' in task_toml
+    assert 'name = "flaggy/local-toy-header-review"' in task_toml
     assert 'network_mode = "no-network"' in task_toml
 
     py_compile.compile(str(task_dir / "tests" / "grade_report.py"), doraise=True)

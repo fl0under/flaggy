@@ -87,13 +87,13 @@ def cmd_operatorize(args: argparse.Namespace) -> int:
     if changed and not args.dry_run:
         root = Path(args.path).resolve()
         if is_task_dir(root):
-            dataset_path, task_filter = root.parent, f' --task-id "{root.name}"'
+            dataset_path, task_filter = root, ""
         else:
             dataset_path, task_filter = root, ""
         console.print("\nValidate the oracle solutions still solve after retargeting:")
-        print(f"  tb run --agent oracle --dataset-path {dataset_path}{task_filter} --no-rebuild")
+        print(f"  harbor run -p {dataset_path} -a oracle{task_filter} --no-force-build")
         console.print("Then run a model with Terminus in the operator environment:")
-        print(f"  tb run --agent terminus --model <model> --dataset-path {dataset_path}{task_filter}")
+        print(f"  harbor run -p {dataset_path} -a terminus-2 -m <model>{task_filter}")
     return 0
 
 
@@ -113,9 +113,9 @@ def cmd_generate(args: argparse.Namespace) -> int:
     out = Path(args.out)
     console.print(f"[green]Generated[/green] {len(paths)} training task(s) in {out}")
     console.print("Validate every task is solvable (oracle must capture all flags):")
-    print(f"  tb run --agent oracle --dataset-path {out} --no-rebuild")
+    print(f"  harbor run -p {out} -a oracle --no-force-build")
     console.print("Then RL/eval with Terminus against this contamination-free pool:")
-    print(f"  tb run --agent terminus --model <model> --dataset-path {out}")
+    print(f"  harbor run -p {out} -a terminus-2 -m <model>")
     return 0
 
 
@@ -153,7 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     op = sub.add_parser(
         "operatorize",
-        help="Retarget Harbor/Terminal-Bench tasks (e.g. an adapter's dataset/) onto a prebuilt operator image",
+        help="Retarget Harbor task trees (e.g. an adapter's dataset/) onto a prebuilt operator image",
     )
     op.add_argument("path", help="A task directory or a tree of tasks (e.g. dataset/cybench from the Cybench adapter)")
     op.add_argument("--image", default="flaggy-operator:latest", help="Operator image to use as the new base")

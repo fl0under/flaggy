@@ -175,17 +175,19 @@ already ships tmux, Terminus runs unmodified inside this image. For eval/RL runs
 pin a digest (`FROM nwodtuhs/exegol@sha256:...`) in `operator/Dockerfile` for
 reproducibility.
 
-### External benchmarks (Cybench, NYU CTF, …)
+### External benchmarks (Cybench, NYU CTF, ...)
 
-The CTF benchmarks the labs report on already have Harbor/Terminal-Bench
-adapters, so they live in their own repos and Flaggy just runs against them.
-Terminus runs *inside* each task container, so to use the operator toolbox you
-retarget each generated task's base image:
+The CTF benchmarks the labs report on already have Harbor adapters, or adapter
+code in upstream benchmark repos that emits Harbor-compatible task trees. Flaggy
+does not reimplement those benchmarks; it only retargets their generated task
+environments onto the operator image. Terminus runs *inside* each task
+container, so swapping the task's base image is what gives the agent your
+toolbox:
 
 ```bash
 # After running an adapter (e.g. harbor-framework/terminal-bench adapters/cybench):
 flaggy operatorize /path/to/dataset/cybench --image flaggy-operator:latest
-tb run --agent terminus --model <model> --dataset-path /path/to/dataset/cybench
+harbor run -p /path/to/dataset/cybench -a terminus-2 -m <model>
 ```
 
 `operatorize` rewrites only the final `FROM` of each `environment/Dockerfile`, so
@@ -202,8 +204,9 @@ they never overlap with any eval benchmark — that run through the same harness
 ```bash
 flaggy generate --out datasets/flaggy-train --count 200 --seed 0
 # every task is solvable: the oracle must capture all flags
-tb run --agent oracle --dataset-path datasets/flaggy-train --no-rebuild
+harbor run -p datasets/flaggy-train -a oracle --no-force-build
 # then RL/SFT with Terminus; reward = exact-flag capture
+harbor run -p datasets/flaggy-train -a terminus-2 -m <model>
 ```
 
 Each task hides a unique `flag{...}` recoverable from the challenge files alone,

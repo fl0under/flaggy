@@ -158,7 +158,7 @@ def _toml_string(value: str) -> str:
 
 
 def render_task_toml(scope: Scope, task: Task, *, docker_image: str | None = None) -> str:
-    name = slugify(task.id)
+    name = f"flaggy/{slugify(task.id)}"
     network_mode, hosts = _network_mode(scope)
     allowed_hosts = "[" + ", ".join(_toml_string(h) for h in hosts) + "]"
     env_image = f"docker_image = {_toml_string(docker_image)}\n" if docker_image else ""
@@ -232,7 +232,7 @@ def render_interactive_md(task: Task) -> str:
     ).strip() + "\n"
 
 def render_dockerfile(task: Task, target: Target, *, base_image: str = "python:3.12-slim") -> str:
-    packages = "bash curl ca-certificates file binutils git"
+    packages = "bash curl ca-certificates file binutils git tmux asciinema"
     if target.kind == "binary":
         packages += " gdb"
     return textwrap.dedent(
