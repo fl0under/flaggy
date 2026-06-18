@@ -1,0 +1,23 @@
+{
+  "scope": "configs/scope.supersanic.yaml",
+  "task": {
+    "id": "ctf-supersanic-rsa",
+    "kind": "ctf",
+    "scope": "configs/scope.supersanic.yaml",
+    "agent": "scout",
+    "target": "supersanic",
+    "objective": "Solve the local supeRSAnic RSA CTF challenge. Inspect the provided Python challenge, recover the generated 6-digit PIN from the printed RSA values using safe local analysis, and submit the PIN to obtain the flag. Write the final flag and supporting reasoning/evidence under /logs/artifacts/.",
+    "constraints": [
+      "Load and obey the provided scope before interacting with the challenge.",
+      "Stay within the local challenge files and local process execution only.",
+      "Prefer code review and safe local reproduction.",
+      "Do not use internet access, broad scans, destructive actions, persistence, stealth, or data exfiltration.",
+      "Keep a timestamped command log."
+    ],
+    "expected_outputs": [
+      "/logs/artifacts/report.md",
+      "/logs/artifacts/notes.md",
+      "/logs/artifacts/evidence/"
+    ]
+  }
+}
